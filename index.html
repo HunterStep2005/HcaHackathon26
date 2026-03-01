@@ -2648,11 +2648,13 @@
         if (prefs.chart_range) appState.chartRange = prefs.chart_range;
         if (prefs.default_facility) appState.selectedFacility = prefs.default_facility;
 
-        // Apply roles (convert array to object map)
+        // Apply roles (convert array to object map, track server IDs)
         if (roles && roles.length) {
           const rolesMap = {};
           roles.forEach(r => {
             rolesMap[r.name] = {
+              _serverId: r.id,
+              _isDefault: r.is_default,
               facilities: r.facilities,
               metrics: r.metrics,
               kpis: r.kpis
@@ -3887,7 +3889,14 @@
 
     function toggleAlertRule(id) {
       const rule = appState.alertRules.find(r => r.id === id);
-      if (rule) rule.enabled = !rule.enabled;
+      if (rule) {
+        rule.enabled = !rule.enabled;
+        // Persist to server
+        if (AUTH_TOKEN && !IS_SHARE_VIEW) {
+          apiCall('PUT', '/api/alerts/' + id, { enabled: rule.enabled })
+            .catch(e => console.warn('Failed to update alert:', e));
+        }
+      }
       renderAlerts();
     }
 
@@ -4044,6 +4053,16 @@
         appState.snoozedAlerts.delete(id);
       } else {
         appState.snoozedAlerts.add(id);
+        // Persist snooze to server (extract alert rule ID from the alert key)
+        if (AUTH_TOKEN && !IS_SHARE_VIEW) {
+          const parts = id.split('_');
+          const ruleId = parts[parts.length - 1];
+          const matchingRule = appState.alertRules.find(r => String(r.id) === ruleId);
+          if (matchingRule) {
+            apiCall('POST', '/api/alerts/' + matchingRule.id + '/snooze', { minutes: 60 })
+              .catch(e => console.warn('Failed to snooze alert:', e));
+          }
+        }
       }
       renderAlerts();
     }
@@ -4074,22 +4093,47 @@
       var name = 'Custom Role ' + count;
       while (appState.roles[name]) { count++; name = 'Custom Role ' + count; }
       var allIds = Object.keys(DATA.facilities);
-      appState.roles[name] = {
+      var newRole = {
         facilities: allIds.slice(),
         metrics: ['Total Census', 'ICU Occupancy', 'Admissions', 'Discharges', 'Births'],
         kpis: ['census', 'bedUtil', 'icuUtil', 'admissions', 'discharges']
       };
+      appState.roles[name] = newRole;
+
+      // Persist to server
+      if (AUTH_TOKEN && !IS_SHARE_VIEW) {
+        apiCall('POST', '/api/roles', {
+          name: name,
+          facilities: newRole.facilities,
+          metrics: newRole.metrics,
+          kpis: newRole.kpis
+        }).then(saved => {
+          newRole._serverId = saved.id;
+          newRole._isDefault = false;
+        }).catch(e => console.warn('Failed to save role:', e));
+      }
+
       renderRoleConfig();
       populateRoleDropdown();
     }
 
     function deleteRole(name) {
       if (Object.keys(appState.roles).length <= 1) { showToast('Must keep at least one role'); return; }
+      var role = appState.roles[name];
+      var serverId = role ? role._serverId : null;
+
       delete appState.roles[name];
       if (appState.activeRole === name) {
         appState.activeRole = Object.keys(appState.roles)[0];
         switchActiveRole(appState.activeRole);
       }
+
+      // Persist to server
+      if (AUTH_TOKEN && !IS_SHARE_VIEW && serverId) {
+        apiCall('DELETE', '/api/roles/' + serverId)
+          .catch(e => console.warn('Failed to delete role:', e));
+      }
+
       renderRoleConfig();
       populateRoleDropdown();
     }
@@ -4138,6 +4182,16 @@
       role.kpis = selKpis;
 
       showToast('Role "' + name + '" saved');
+
+      // Persist to server
+      if (AUTH_TOKEN && !IS_SHARE_VIEW && role._serverId) {
+        apiCall('PUT', '/api/roles/' + role._serverId, {
+          facilities: role.facilities,
+          metrics: role.metrics,
+          kpis: role.kpis
+        }).catch(e => console.warn('Failed to save role config:', e));
+      }
+
       renderRoleConfig();
       populateRoleDropdown();
       if (name === appState.activeRole) switchActiveRole(name);
