@@ -2654,6 +2654,7 @@
     const API_BASE = window.location.hostname.includes('github.io')
       ? 'https://hcahackathon26.onrender.com'
       : '';
+    const SHARE_BASE = API_BASE || window.location.origin; // Share links always point to the server
 
     async function apiCall(method, path, body) {
       const opts = { method, headers: authHeaders() };
@@ -4705,7 +4706,7 @@
           password: password
         });
 
-        lastGeneratedShareUrl = window.location.origin + '/?share=' + result.id;
+        lastGeneratedShareUrl = SHARE_BASE + '/?share=' + result.id;
         const meta = [];
         if (expiryHours > 0) meta.push('expires in ' + (expiryHours < 48 ? expiryHours + 'h' : Math.round(expiryHours/24) + ' days'));
         if (password) meta.push('password-protected');
