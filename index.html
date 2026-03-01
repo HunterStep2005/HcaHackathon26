@@ -2867,17 +2867,20 @@
         'CEO': {
           facilities: '__all__',
           metrics: ['Total Census', 'ICU Occupancy', 'Admissions', 'Discharges', 'Births'],
-          kpis: ['census', 'bedUtil', 'icuUtil', 'admissions', 'discharges']
+          kpis: ['census', 'bedUtil', 'icuUtil', 'admissions', 'discharges'],
+          alertThresholds: { bed: { enabled: true, warning: 85, critical: 95 }, icu: { enabled: true, warning: 80, critical: 90 } }
         },
         'Division VP': {
           facilities: [],
           metrics: ['Total Census', 'ICU Occupancy', 'Admissions', 'Discharges', 'Births'],
-          kpis: ['census', 'bedUtil', 'icuUtil', 'admissions', 'discharges']
+          kpis: ['census', 'bedUtil', 'icuUtil', 'admissions', 'discharges'],
+          alertThresholds: { bed: { enabled: true, warning: 85, critical: 95 }, icu: { enabled: true, warning: 80, critical: 90 } }
         },
         'Hospital Admin': {
           facilities: [],
           metrics: ['Total Census', 'ICU Occupancy', 'Admissions', 'Discharges', 'Births'],
-          kpis: ['census', 'bedUtil', 'icuUtil', 'admissions', 'discharges']
+          kpis: ['census', 'bedUtil', 'icuUtil', 'admissions', 'discharges'],
+          alertThresholds: { bed: { enabled: true, warning: 85, critical: 95 }, icu: { enabled: true, warning: 80, critical: 90 } }
         }
       },
       activeRole: 'CEO',
@@ -2995,13 +2998,15 @@
         // Apply roles (convert array to object map, track server IDs)
         if (roles && roles.length) {
           const rolesMap = {};
+          const defaultTh = { bed: { enabled: true, warning: 85, critical: 95 }, icu: { enabled: true, warning: 80, critical: 90 } };
           roles.forEach(r => {
             rolesMap[r.name] = {
               _serverId: r.id,
               _isDefault: r.is_default,
               facilities: r.facilities,
               metrics: r.metrics,
-              kpis: r.kpis
+              kpis: r.kpis,
+              alertThresholds: r.alert_thresholds || JSON.parse(JSON.stringify(defaultTh))
             };
           });
           appState.roles = rolesMap;
@@ -4172,6 +4177,7 @@
       if (sev === 'critical' && val < appState.alertThresholds[type].warning) {
         appState.alertThresholds[type].warning = val;
       }
+      saveThresholdsToRole();
       syncThresholdUI();
       appState.alertPage = 1;
       renderAlerts();
@@ -4179,6 +4185,7 @@
 
     function toggleAlertType(type, enabled) {
       appState.alertThresholds[type].enabled = enabled;
+      saveThresholdsToRole();
       syncThresholdUI();
       appState.alertPage = 1;
       renderAlerts();
@@ -4417,9 +4424,30 @@
     /* ============================================
        SETTINGS FUNCTIONS
        ============================================ */
+    function getDefaultThresholds() {
+      return { bed: { enabled: true, warning: 85, critical: 95 }, icu: { enabled: true, warning: 80, critical: 90 } };
+    }
+
+    function loadRoleThresholds(roleName) {
+      var role = appState.roles[roleName];
+      if (role && role.alertThresholds) {
+        appState.alertThresholds = JSON.parse(JSON.stringify(role.alertThresholds));
+      } else {
+        appState.alertThresholds = getDefaultThresholds();
+      }
+    }
+
+    function saveThresholdsToRole() {
+      var role = appState.roles[appState.activeRole];
+      if (role) {
+        role.alertThresholds = JSON.parse(JSON.stringify(appState.alertThresholds));
+      }
+    }
+
     function switchActiveRole(roleName) {
       if (!appState.roles[roleName]) return;
       appState.activeRole = roleName;
+      loadRoleThresholds(roleName);
       const visibleIds = getVisibleFacilities();
       const desc = document.getElementById('visibleFacilitiesDesc');
       if (desc) desc.textContent = 'Showing ' + visibleIds.length + ' of ' + Object.keys(DATA.facilities).length + ' facilities';
@@ -4443,7 +4471,8 @@
       var newRole = {
         facilities: allIds.slice(),
         metrics: ['Total Census', 'ICU Occupancy', 'Admissions', 'Discharges', 'Births'],
-        kpis: ['census', 'bedUtil', 'icuUtil', 'admissions', 'discharges']
+        kpis: ['census', 'bedUtil', 'icuUtil', 'admissions', 'discharges'],
+        alertThresholds: getDefaultThresholds()
       };
       appState.roles[name] = newRole;
 
@@ -5256,6 +5285,9 @@
       if (!appState.selectedFacility) appState.selectedFacility = allIds[0];
 
       parseHashParams();
+
+      // Load alert thresholds for the active role
+      loadRoleThresholds(appState.activeRole);
 
       // Compute missing percentages
       Object.values(DATA.facilities).forEach(f => {
