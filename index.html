@@ -4079,65 +4079,32 @@
         const acked = appState.acknowledgedAlerts ? appState.acknowledgedAlerts.has(a.id) : false;
 
         return `
-      <div class="alert-item ${snoozed ? 'snoozed' : ''} ${acked ? 'acknowledged' : ''}">
+      <div class="alert-item ${snoozed ? 'snoozed' : ''} ${acked ? 'acknowledged' : ''}" style="padding:var(--space-3) var(--space-4);gap:var(--space-3);">
         <div class="alert-icon ${a.level}">
           <i data-lucide="${a.level === 'critical' ? 'alert-octagon' : 'alert-triangle'}"></i>
         </div>
-        <div class="alert-body" style="width: 100%; overflow: hidden;">
-          <div class="alert-title ${a.level}">${a.level === 'critical' ? 'CRITICAL' : 'WARNING'}: ${a.facility}</div>
-          <div class="alert-message">${a.message}</div>
-          <div class="alert-time">${facilityDateTime(a.time, a.tz)}</div>
-          <div style="height: 40px; margin-top: 8px; position: relative;">
-            <canvas id="sparkline_${i}"></canvas>
+        <div class="alert-body" style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);flex-wrap:wrap;">
+            <div style="min-width:0;">
+              <div class="alert-title ${a.level}" style="margin-bottom:2px;">${a.level === 'critical' ? 'CRITICAL' : 'WARNING'}: ${a.facility}</div>
+              <div class="alert-message" style="margin-bottom:2px;">${a.message}</div>
+              <div class="alert-time">${facilityDateTime(a.time, a.tz)}</div>
+            </div>
+            <div style="display:flex;gap:var(--space-2);align-items:center;flex-shrink:0;">
+              <button class="btn btn-sm ${acked ? 'btn-secondary' : 'btn-primary'}" onclick="ackAlert('${a.id}')" title="${acked ? 'Undo acknowledge' : 'Acknowledge'}" style="padding:4px 10px;font-size:11px;">
+                <i data-lucide="${acked ? 'check-check' : 'check'}" style="width:14px;height:14px;"></i>
+              </button>
+              <button class="btn btn-sm btn-secondary" onclick="notifyFacility('${a.facility}')" title="Notify facility" style="padding:4px 10px;font-size:11px;">
+                <i data-lucide="send" style="width:14px;height:14px;"></i>
+              </button>
+              <button class="btn btn-sm btn-secondary" onclick="snoozeAlert('${a.id}')" title="${snoozed ? 'Unsnooze' : 'Snooze 1h'}" style="padding:4px 10px;font-size:11px;">
+                <i data-lucide="${snoozed ? 'bell-ring' : 'bell-off'}" style="width:14px;height:14px;"></i>
+              </button>
+            </div>
           </div>
-        </div>
-        <div class="alert-actions" style="display: flex; flex-direction: column; gap: var(--space-2); min-width: 90px;">
-          <button class="btn btn-sm ${acked ? 'btn-secondary' : 'btn-primary'}" onclick="ackAlert('${a.id}')">
-            ${acked ? 'Acked ✅' : 'Acknowledge'}
-          </button>
-          <button class="btn btn-sm btn-secondary" onclick="notifyFacility('${a.facility}')">
-            Notify
-          </button>
-          <button class="btn btn-sm btn-secondary" onclick="snoozeAlert('${a.id}')">
-            ${snoozed ? 'Unsn.' : 'Snooze'}
-          </button>
         </div>
       </div>`;
       }).join('');
-
-      // Render sparklines
-      visibleAlerts.forEach((a, i) => {
-        if (!a.points || a.points.length === 0) return;
-        const ctx = document.getElementById(`sparkline_${i}`);
-        if (!ctx) return;
-
-        const sortedPoints = [...a.points].sort((p1, p2) => new Date(p1.t) - new Date(p2.t));
-
-        new Chart(ctx, {
-          type: 'line',
-          data: {
-            datasets: [{
-              data: sortedPoints.map(p => ({ x: p.t, y: (p.v / a.capacity) * 100 })),
-              borderColor: a.level === 'critical' ? 'rgba(235, 87, 87, 0.8)' : 'rgba(242, 153, 74, 0.8)',
-              borderWidth: 2,
-              tension: 0.3,
-              pointRadius: 0,
-              fill: true,
-              backgroundColor: a.level === 'critical' ? 'rgba(235, 87, 87, 0.1)' : 'rgba(242, 153, 74, 0.1)',
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false }, tooltip: { enabled: false } },
-            scales: {
-              x: { type: 'time', display: false },
-              y: { display: false, min: 0, max: 100 }
-            },
-            layout: { padding: 0 }
-          }
-        });
-      });
 
       lucide.createIcons();
 
