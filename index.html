@@ -2522,11 +2522,16 @@
 
           <!-- AI Transparency -->
           <div class="settings-section">
-            <h3><i data-lucide="brain"></i> Forecast Information</h3>
+            <h3><i data-lucide="brain"></i> AI Transparency</h3>
             <div class="ai-disclosure-item">
               <i data-lucide="bar-chart-3"></i>
               <p><strong>Holt-Winters Exponential Smoothing</strong> used for 72-hour census and ICU forecasts. Model is
                 retrained hourly on a rolling 14-day window.</p>
+            </div>
+            <div class="ai-disclosure-item">
+              <i data-lucide="cpu"></i>
+              <p><strong>AI Code Generation (Claude)</strong> used during development. All outputs reviewed and tested
+                by the engineering team.</p>
             </div>
             <div class="ai-disclosure-item">
               <i data-lucide="alert-triangle"></i>
@@ -4294,39 +4299,13 @@
           '</div>' +
         '</div>';
         renderRoleConfig();
-      } else if (perm === 'ceo') {
-        // CEO: customize only their own role
+      } else {
+        // Other roles: customize metrics/KPIs only, no facility toggle
         container.innerHTML = '<div class="settings-section">' +
           '<h3><i data-lucide="sliders"></i> My Dashboard Customization</h3>' +
           '<div id="ceoRoleConfig"></div>' +
-          '<div class="settings-row" id="visibleFacilitiesRow" style="margin-top:var(--space-3);">' +
-            '<div>' +
-              '<div class="settings-row-label">Visible Facilities</div>' +
-              '<div class="settings-row-desc" id="visibleFacilitiesDesc">Showing all 10 facilities</div>' +
-            '</div>' +
-          '</div>' +
         '</div>';
         renderCeoRoleConfig();
-      } else {
-        // VP / Hospital Admin: read-only, just show what they see
-        var role = appState.roles[appState.activeRole];
-        var facCount = role ? (role.facilities === '__all__' ? Object.keys(DATA.facilities).length : (role.facilities || []).length) : 0;
-        var metCount = role ? (role.metrics || []).length : 0;
-        container.innerHTML = '<div class="settings-section">' +
-          '<h3><i data-lucide="eye"></i> Your View</h3>' +
-          '<div class="settings-row"><div>' +
-            '<div class="settings-row-label">Role</div>' +
-            '<div class="settings-row-desc">' + appState.activeRole + '</div>' +
-          '</div></div>' +
-          '<div class="settings-row"><div>' +
-            '<div class="settings-row-label">Facilities</div>' +
-            '<div class="settings-row-desc">' + facCount + ' facilities assigned by admin</div>' +
-          '</div></div>' +
-          '<div class="settings-row"><div>' +
-            '<div class="settings-row-label">Metrics</div>' +
-            '<div class="settings-row-desc">' + metCount + ' metrics assigned by admin</div>' +
-          '</div></div>' +
-        '</div>';
       }
       lucide.createIcons();
     }
@@ -4355,13 +4334,16 @@
       html += '</div>';
       html += '<div style="padding:var(--space-3) var(--space-4);">';
 
-      // Facilities
-      html += '<div class="role-field"><div class="role-field-label">Facilities</div><div class="role-check-grid">';
-      allIds.forEach(function (fid) {
-        var checked = facList.includes(fid) ? ' checked' : '';
-        html += '<label><input type="checkbox" data-group="ceo-fac" value="' + fid + '"' + checked + '> ' + DATA.facilities[fid].location + '</label>';
-      });
-      html += '</div></div>';
+      // Facilities (only for admin/CEO)
+      var perm = getUserPermLevel();
+      if (perm === 'admin' || perm === 'ceo') {
+        html += '<div class="role-field"><div class="role-field-label">Facilities</div><div class="role-check-grid">';
+        allIds.forEach(function (fid) {
+          var checked = facList.includes(fid) ? ' checked' : '';
+          html += '<label><input type="checkbox" data-group="ceo-fac" value="' + fid + '"' + checked + '> ' + DATA.facilities[fid].location + '</label>';
+        });
+        html += '</div></div>';
+      }
 
       // Metrics
       html += '<div class="role-field"><div class="role-field-label">Chart Metrics</div><div class="role-check-grid">';
