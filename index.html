@@ -2424,32 +2424,6 @@
 
         <!-- SETTINGS TAB -->
         <div class="tab-panel" id="tab-settings">
-          <!-- Dashboard Customization -->
-          <div class="settings-section">
-            <h3><i data-lucide="palette"></i> Dashboard Customization</h3>
-            <div class="settings-row">
-              <div>
-                <div class="settings-row-label">Default View</div>
-                <div class="settings-row-desc">Tab shown on launch</div>
-              </div>
-              <select id="settingsDefaultView" onchange="appState.settings.defaultView = this.value; savePreference('default_view', this.value)">
-                <option value="overview">Overview</option>
-                <option value="facilities">Facilities</option>
-                <option value="alerts">Alerts</option>
-              </select>
-            </div>
-            <div class="settings-row">
-              <div>
-                <div class="settings-row-label">Dark Mode</div>
-                <div class="settings-row-desc">Toggle dashboard theme</div>
-              </div>
-              <label class="toggle-switch">
-                <input type="checkbox" id="settingsDarkMode" onchange="toggleTheme()">
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-          </div>
-
           <!-- Share & Export -->
           <div class="settings-section">
             <h3><i data-lucide="share-2"></i> Share & Export</h3>
@@ -2522,16 +2496,10 @@
 
           <!-- AI Transparency -->
           <div class="settings-section">
-            <h3><i data-lucide="brain"></i> AI Transparency</h3>
+            <h3><i data-lucide="brain"></i> Forecast Information</h3>
             <div class="ai-disclosure-item">
               <i data-lucide="bar-chart-3"></i>
-              <p><strong>Holt-Winters Exponential Smoothing</strong> used for 72-hour census and ICU forecasts. Model is
-                retrained hourly on a rolling 14-day window.</p>
-            </div>
-            <div class="ai-disclosure-item">
-              <i data-lucide="cpu"></i>
-              <p><strong>AI Code Generation (Claude)</strong> used during development. All outputs reviewed and tested
-                by the engineering team.</p>
+              <p><strong>Holt-Winters Exponential Smoothing</strong> used for Census and ICU forecasts. Model is retrained hourly on a rolling 14-day window, and tested against the most recent 36 hours of data. Confidence level of 50%.</p>
             </div>
             <div class="ai-disclosure-item">
               <i data-lucide="alert-triangle"></i>
@@ -2631,7 +2599,7 @@
       chartRange: '7d',
       chartInteractive: false,
       role: 'ceo',
-      theme: 'light',
+      theme: 'dark',
       alertRules: [],
       snoozedAlerts: new Set(),
       acknowledgedAlerts: new Set(),
@@ -2766,6 +2734,8 @@
 
         // Apply preferences
         if (prefs.theme) appState.theme = prefs.theme;
+        // Always ensure dark mode on load
+        appState.theme = 'dark';
         if (prefs.default_view) appState.settings.defaultView = prefs.default_view;
         if (prefs.chart_range) appState.chartRange = prefs.chart_range;
         if (prefs.default_facility) appState.selectedFacility = prefs.default_facility;
