@@ -2359,38 +2359,23 @@
                 <select id="alertFacility"></select>
               </div>
               <div class="form-group">
-                <label>Metric</label>
-                <select id="alertMetric">
-                  <option value="Total Census">Bed Occupancy</option>
-                  <option value="ICU Occupancy">ICU Occupancy</option>
+                <label>Severity</label>
+                <select id="alertSeverity">
+                  <option value="all">All</option>
+                  <option value="critical">Critical Only</option>
+                  <option value="warning">Warning Only</option>
                 </select>
               </div>
               <div class="form-group">
-                <label>Warning %</label>
-                <input type="range" id="alertWarning" min="50" max="100" value="85">
-                <div class="slider-value" id="alertWarningVal">85%</div>
-              </div>
-              <div class="form-group">
-                <label>Critical %</label>
-                <input type="range" id="alertCritical" min="50" max="100" value="95">
-                <div class="slider-value" id="alertCriticalVal">95%</div>
-              </div>
-              <div class="form-group">
-                <label>Cooldown</label>
-                <select id="alertCooldown">
-                  <option value="1">1 hour</option>
-                  <option value="2">2 hours</option>
-                  <option value="4" selected>4 hours</option>
-                  <option value="8">8 hours</option>
+                <label>Time Range</label>
+                <select id="alertTimeRange">
+                  <option value="today">Today</option>
+                  <option value="24h">Last 24 Hours</option>
+                  <option value="3d">Last 3 Days</option>
+                  <option value="7d">Last 7 Days</option>
                 </select>
-              </div>
-              <div style="display:flex;gap:var(--space-2);align-items:end;">
-                <button class="btn btn-primary" onclick="addAlertRule()">
-                  <i data-lucide="plus" style="width:16px;height:16px;"></i> Add Rule
-                </button>
               </div>
             </div>
-            <div class="alert-rules" id="alertRules"></div>
           </div>
 
           <div class="section-header">
@@ -3915,231 +3900,147 @@
       const visibleIds = getVisibleFacilities();
       sel.innerHTML = '<option value="all">All Facilities</option>' +
         visibleIds.map(id => `<option value="${id}">${DATA.facilities[id].location}</option>`).join('');
-    }
+      sel.addEventListener('change', renderAlerts);
 
-    document.getElementById('alertWarning').addEventListener('input', function () {
-      document.getElementById('alertWarningVal').textContent = this.value + '%';
-    });
-    document.getElementById('alertCritical').addEventListener('input', function () {
-      document.getElementById('alertCriticalVal').textContent = this.value + '%';
-    });
-
-    function addAlertRule() {
-      const facility = document.getElementById('alertFacility').value;
-      const metric = document.getElementById('alertMetric').value;
-      const warning = parseInt(document.getElementById('alertWarning').value);
-      const critical = parseInt(document.getElementById('alertCritical').value);
-      const cooldown = parseInt(document.getElementById('alertCooldown').value);
-      const facilityName = facility === 'all' ? 'All Facilities' : DATA.facilities[facility].location;
-
-      const rule = {
-        id: Date.now(),
-        facility,
-        metric,
-        warning,
-        critical,
-        cooldown,
-        facilityName,
-        enabled: true
-      };
-      appState.alertRules.push(rule);
-
-      // Persist to server
-      if (AUTH_TOKEN && !IS_SHARE_VIEW) {
-        apiCall('POST', '/api/alerts', {
-          metric,
-          operator: '>=',
-          threshold: critical,
-          facility_id: facility === 'all' ? null : facility,
-          enabled: true
-        }).then(saved => {
-          rule.id = saved.id; // Update with server ID
-        }).catch(e => console.warn('Failed to save alert:', e));
-      }
-
-      renderAlertRules();
-      renderAlerts();
-      showToast('Alert rule added');
-      pushNotification('info', 'Alert rule created', facilityName + ' — ' + (metric === 'Total Census' ? 'Bed' : 'ICU') + ' Occ. ⚠️ ' + warning + '% / 🔴 ' + critical + '%');
-    }
-
-    function renderAlertRules() {
-      const container = document.getElementById('alertRules');
-      if (appState.alertRules.length === 0) {
-        container.innerHTML = '<p style="font-size:var(--text-xs);color:var(--color-text-muted);padding:var(--space-2) 0;">No custom rules. Default: Warning at 85%, Critical at 95%.</p>';
-        return;
-      }
-      container.innerHTML = appState.alertRules.map(r => `
-    <div class="alert-rule">
-      <div class="alert-rule-text">
-        <strong>${r.facilityName}</strong> — ${r.metric === 'Total Census' ? 'Bed' : 'ICU'} Occ.
-        ⚠️ ${r.warning}% / 🔴 ${r.critical}% · ${r.cooldown || 4}h cooldown
-      </div>
-      <label class="toggle-switch">
-        <input type="checkbox" ${r.enabled ? 'checked' : ''} onchange="toggleAlertRule(${r.id})">
-        <span class="toggle-slider"></span>
-      </label>
-      <button class="btn btn-sm btn-secondary" onclick="removeAlertRule(${r.id})">
-        <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
-      </button>
-    </div>
-  `).join('');
-      lucide.createIcons();
-    }
-
-    function toggleAlertRule(id) {
-      const rule = appState.alertRules.find(r => r.id === id);
-      if (rule) {
-        rule.enabled = !rule.enabled;
-        // Persist to server
-        if (AUTH_TOKEN && !IS_SHARE_VIEW) {
-          apiCall('PUT', '/api/alerts/' + id, { enabled: rule.enabled })
-            .catch(e => console.warn('Failed to update alert:', e));
-        }
-      }
-      renderAlerts();
-    }
-
-    function removeAlertRule(id) {
-      appState.alertRules = appState.alertRules.filter(r => r.id !== id);
-      // Persist to server
-      if (AUTH_TOKEN && !IS_SHARE_VIEW) {
-        apiCall('DELETE', '/api/alerts/' + id).catch(e => console.warn('Failed to delete alert:', e));
-      }
-      renderAlertRules();
-      renderAlerts();
-      showToast('Alert rule removed');
+      const timeSel = document.getElementById('alertTimeRange');
+      if (timeSel) timeSel.addEventListener('change', renderAlerts);
     }
 
     function generateAlerts() {
       const alerts = [];
+      const facilitySel = document.getElementById('alertFacility') ? document.getElementById('alertFacility').value : 'all';
+      const timeSel = document.getElementById('alertTimeRange') ? document.getElementById('alertTimeRange').value : 'today';
+      const sevSel = document.getElementById('alertSeverity') ? document.getElementById('alertSeverity').value : 'all';
       const visibleIds = getVisibleFacilities();
 
-      // Build effective thresholds from user rules
-      // User rules have: metric ('Total Census' or 'ICU Occupancy'), operator, threshold, facility_id, enabled
-      const enabledRules = appState.alertRules.filter(r => r.enabled !== false && r.enabled !== 0);
+      const idsToCheck = facilitySel === 'all' ? visibleIds : [facilitySel];
 
-      visibleIds.forEach(id => {
+      const now = new Date(DATA.lastUpdated);
+      let startTime = new Date(now);
+      if (timeSel === 'today') {
+        startTime.setHours(0, 0, 0, 0);
+      } else if (timeSel === '24h') {
+        startTime.setHours(startTime.getHours() - 24);
+      } else if (timeSel === '3d') {
+        startTime.setHours(startTime.getHours() - 72);
+      } else if (timeSel === '7d') {
+        startTime.setHours(startTime.getHours() - 168);
+      }
+
+      idsToCheck.forEach(id => {
         const f = DATA.facilities[id];
-        const occ = computeOccPct(f);
-        const icu = computeIcuPct(f);
+        const capacityBed = f.beds;
+        const capacityICU = f.icuMax;
 
-        // Find user-configured thresholds for this facility, or use defaults
-        const bedRules = enabledRules.filter(r => r.metric === 'Total Census' && (!r.facility_id || r.facility_id === id));
-        const icuRules = enabledRules.filter(r => r.metric === 'ICU Occupancy' && (!r.facility_id || r.facility_id === id));
+        const cData = DATA.chartData[id];
+        if (!cData) return;
 
-        // Effective thresholds: use user rules if set, else defaults
-        const bedCritical = bedRules.find(r => r.operator === '>=' && r.threshold >= 90) ? bedRules.find(r => r.operator === '>=' && r.threshold >= 90).threshold : 95;
-        const bedWarning = bedRules.find(r => r.operator === '>=' && r.threshold < 90) ? bedRules.find(r => r.operator === '>=' && r.threshold < 90).threshold : 85;
-        const icuCritical = icuRules.find(r => r.operator === '>=' && r.threshold >= 90) ? icuRules.find(r => r.operator === '>=' && r.threshold >= 90).threshold : 95;
-        const icuWarning = icuRules.find(r => r.operator === '>=' && r.threshold < 90) ? icuRules.find(r => r.operator === '>=' && r.threshold < 90).threshold : 85;
+        const checkSeries = (seriesName, capacity, metricName) => {
+          if (!cData[seriesName]) return;
 
-        // Current state alerts — bed occupancy
-        if (occ >= bedCritical) {
-          alerts.push({
-            id: 'curr_bed_' + id, level: 'critical', facility: f.location,
-            message: `Bed occupancy at ${formatPct(occ)} (${f.latestCensus}/${f.beds}). Exceeds ${bedCritical}% threshold.`,
-            time: DATA.lastUpdated, tz: f.timezone
-          });
-        } else if (occ >= bedWarning) {
-          alerts.push({
-            id: 'curr_bed_' + id, level: 'warning', facility: f.location,
-            message: `Bed occupancy at ${formatPct(occ)} (${f.latestCensus}/${f.beds}). Exceeds ${bedWarning}% warning threshold.`,
-            time: DATA.lastUpdated, tz: f.timezone
-          });
-        }
+          let currentIncident = null;
 
-        // Current state alerts — ICU occupancy
-        if (icu >= icuCritical) {
-          alerts.push({
-            id: 'curr_icu_' + id, level: 'critical', facility: f.location,
-            message: `ICU occupancy at ${formatPct(icu)} (${f.latestICU}/${f.icuMax}). Exceeds ${icuCritical}% threshold.`,
-            time: DATA.lastUpdated, tz: f.timezone
-          });
-        } else if (icu >= icuWarning) {
-          alerts.push({
-            id: 'curr_icu_' + id, level: 'warning', facility: f.location,
-            message: `ICU occupancy at ${formatPct(icu)} (${f.latestICU}/${f.icuMax}). Exceeds ${icuWarning}% warning threshold.`,
-            time: DATA.lastUpdated, tz: f.timezone
-          });
-        }
+          for (let pt of cData[seriesName]) {
+            const ptTime = new Date(pt.t);
+            if (ptTime < startTime || ptTime > now) continue;
 
-        // Forecast alerts — projected bed capacity
-        const fKey = id + '_Total Census';
-        const forecasts = DATA.forecasts[fKey];
-        if (forecasts) {
-          const threshFc = f.beds * (bedCritical / 100);
-          for (const pt of forecasts) {
-            if (pt.value >= threshFc) {
-              alerts.push({
-                id: 'fc_bed_' + id, level: 'critical', facility: f.location,
-                message: `Projected to exceed ${bedCritical}% bed capacity by ${facilityDateTime(pt.timestamp, f.timezone)}.`,
-                time: pt.timestamp, tz: f.timezone
-              });
-              break;
+            const pct = capacity > 0 ? (pt.v / capacity) * 100 : 0;
+            let currentLevel = null;
+            if (pct >= 95) currentLevel = 'critical';
+            else if (pct >= 85) currentLevel = 'warning';
+
+            if (currentLevel) {
+              if (!currentIncident || currentIncident.level !== currentLevel) {
+                if (currentIncident) {
+                  alerts.push(currentIncident);
+                }
+                currentIncident = {
+                  id: `hist_${metricName}_${id}_${pt.t}`,
+                  level: currentLevel,
+                  facility: f.location,
+                  metric: metricName,
+                  startTime: pt.t,
+                  endTime: pt.t,
+                  maxPct: pct,
+                  maxV: pt.v,
+                  capacity: capacity,
+                  tz: f.timezone,
+                  points: [{ t: pt.t, v: pt.v }]
+                };
+              } else {
+                currentIncident.endTime = pt.t;
+                currentIncident.points.push({ t: pt.t, v: pt.v });
+                if (pct > currentIncident.maxPct) {
+                  currentIncident.maxPct = pct;
+                  currentIncident.maxV = pt.v;
+                }
+              }
+            } else {
+              if (currentIncident) {
+                alerts.push(currentIncident);
+                currentIncident = null;
+              }
             }
           }
-        }
-
-        // Forecast alerts — projected ICU capacity
-        const icuKey = id + '_ICU Occupancy';
-        const icuForecasts = DATA.forecasts[icuKey];
-        if (icuForecasts) {
-          const threshFc = f.icuMax * (icuCritical / 100);
-          for (const pt of icuForecasts) {
-            if (pt.value >= threshFc) {
-              alerts.push({
-                id: 'fc_icu_' + id, level: 'critical', facility: f.location,
-                message: `ICU projected to exceed ${icuCritical}% capacity by ${facilityDateTime(pt.timestamp, f.timezone)}.`,
-                time: pt.timestamp, tz: f.timezone
-              });
-              break;
-            }
+          if (currentIncident) {
+            alerts.push(currentIncident);
           }
-        }
+        };
 
-        // Also evaluate any custom user rules with direct comparison
-        enabledRules.forEach(rule => {
-          if (rule.facility_id && rule.facility_id !== id) return;
-          const val = rule.metric === 'Total Census' ? occ : rule.metric === 'ICU Occupancy' ? icu : null;
-          if (val === null) return;
-          let triggered = false;
-          if (rule.operator === '>' && val > rule.threshold) triggered = true;
-          if (rule.operator === '>=' && val >= rule.threshold) triggered = true;
-          if (rule.operator === '<' && val < rule.threshold) triggered = true;
-          if (rule.operator === '<=' && val <= rule.threshold) triggered = true;
-          if (rule.operator === '==' && val == rule.threshold) triggered = true;
-          if (triggered) {
-            const ruleAlertId = 'rule_' + rule.id + '_' + id;
-            if (!alerts.find(a => a.id === ruleAlertId)) {
-              alerts.push({
-                id: ruleAlertId,
-                level: rule.threshold >= 90 ? 'critical' : 'warning',
-                facility: f.location,
-                message: `Custom rule: ${rule.metric} ${rule.operator} ${rule.threshold}% (current: ${formatPct(val)})`,
-                time: DATA.lastUpdated, tz: f.timezone
-              });
-            }
-          }
-        });
+        checkSeries('Total Census', capacityBed, 'Bed');
+        checkSeries('ICU Occupancy', capacityICU, 'ICU');
       });
 
-      // Sort by level (critical first) then time
-      alerts.sort((a, b) => {
+      let filteredAlerts = alerts;
+      if (sevSel !== 'all') {
+        filteredAlerts = alerts.filter(a => a.level === sevSel);
+      }
+
+      const formattedAlerts = filteredAlerts.map(a => {
+        let durationStr = "";
+        const sTime = new Date(a.startTime);
+        const eTime = new Date(a.endTime);
+        const diffMins = Math.round((eTime - sTime) / 60000);
+        if (diffMins > 0) {
+          if (diffMins >= 60) {
+            durationStr = ` for ${Math.floor(diffMins / 60)}h ${diffMins % 60}m`;
+          } else {
+            durationStr = ` for ${diffMins}m`;
+          }
+        }
+        return {
+          id: a.id,
+          level: a.level,
+          facility: a.facility,
+          message: `${a.metric} occupancy hit ${a.maxPct.toFixed(1)}% (${a.maxV}/${a.capacity})${durationStr}.`,
+          time: a.endTime,
+          tz: a.tz,
+          capacity: a.capacity,
+          points: a.points
+        }
+      });
+
+      formattedAlerts.sort((a, b) => {
         if (a.level === 'critical' && b.level !== 'critical') return -1;
         if (a.level !== 'critical' && b.level === 'critical') return 1;
         return new Date(b.time) - new Date(a.time);
       });
 
-      return alerts;
+      return formattedAlerts;
     }
 
     function renderAlerts() {
       const alerts = generateAlerts();
       syncAlertsToNotifications(alerts);
+      appState.currentAlerts = alerts;
+      renderAlertsList();
+    }
+
+    function renderAlertsList() {
+      const alerts = appState.currentAlerts;
       const container = document.getElementById('alertsFeed');
 
-      if (alerts.length === 0) {
+      if (!alerts || alerts.length === 0) {
         container.innerHTML = `
       <div style="text-align:center;padding:var(--space-8);color:var(--color-text-muted);">
         <i data-lucide="check-circle" style="width:40px;height:40px;margin:0 auto var(--space-3);display:block;color:var(--green);"></i>
@@ -4147,29 +4048,114 @@
         <p style="font-size:var(--text-xs);">No active alerts at this time.</p>
       </div>`;
         lucide.createIcons();
+        document.getElementById('loadMoreAlertsBtn')?.remove();
         return;
       }
 
-      container.innerHTML = alerts.map(a => {
+      const pageLimit = 10;
+      const currentPage = appState.alertPage || 1;
+      const visibleAlerts = alerts.slice(0, currentPage * pageLimit);
+
+      container.innerHTML = visibleAlerts.map((a, i) => {
         const snoozed = appState.snoozedAlerts.has(a.id);
+        const acked = appState.acknowledgedAlerts ? appState.acknowledgedAlerts.has(a.id) : false;
+
         return `
-      <div class="alert-item ${snoozed ? 'snoozed' : ''}">
+      <div class="alert-item ${snoozed ? 'snoozed' : ''} ${acked ? 'acknowledged' : ''}">
         <div class="alert-icon ${a.level}">
           <i data-lucide="${a.level === 'critical' ? 'alert-octagon' : 'alert-triangle'}"></i>
         </div>
-        <div class="alert-body">
+        <div class="alert-body" style="width: 100%; overflow: hidden;">
           <div class="alert-title ${a.level}">${a.level === 'critical' ? 'CRITICAL' : 'WARNING'}: ${a.facility}</div>
           <div class="alert-message">${a.message}</div>
           <div class="alert-time">${facilityDateTime(a.time, a.tz)}</div>
+          <div style="height: 40px; margin-top: 8px; position: relative;">
+            <canvas id="sparkline_${i}"></canvas>
+          </div>
         </div>
-        <div class="alert-actions">
+        <div class="alert-actions" style="display: flex; flex-direction: column; gap: var(--space-2); min-width: 90px;">
+          <button class="btn btn-sm ${acked ? 'btn-secondary' : 'btn-primary'}" onclick="ackAlert('${a.id}')">
+            ${acked ? 'Acked ✅' : 'Acknowledge'}
+          </button>
+          <button class="btn btn-sm btn-secondary" onclick="notifyFacility('${a.facility}')">
+            Notify
+          </button>
           <button class="btn btn-sm btn-secondary" onclick="snoozeAlert('${a.id}')">
             ${snoozed ? 'Unsn.' : 'Snooze'}
           </button>
         </div>
       </div>`;
       }).join('');
+
+      // Render sparklines
+      visibleAlerts.forEach((a, i) => {
+        if (!a.points || a.points.length === 0) return;
+        const ctx = document.getElementById(`sparkline_${i}`);
+        if (!ctx) return;
+
+        const sortedPoints = [...a.points].sort((p1, p2) => new Date(p1.t) - new Date(p2.t));
+
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            datasets: [{
+              data: sortedPoints.map(p => ({ x: p.t, y: (p.v / a.capacity) * 100 })),
+              borderColor: a.level === 'critical' ? 'rgba(235, 87, 87, 0.8)' : 'rgba(242, 153, 74, 0.8)',
+              borderWidth: 2,
+              tension: 0.3,
+              pointRadius: 0,
+              fill: true,
+              backgroundColor: a.level === 'critical' ? 'rgba(235, 87, 87, 0.1)' : 'rgba(242, 153, 74, 0.1)',
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: {
+              x: { type: 'time', display: false },
+              y: { display: false, min: 0, max: 100 }
+            },
+            layout: { padding: 0 }
+          }
+        });
+      });
+
       lucide.createIcons();
+
+      // Add Load More button if needed
+      let loadMoreBtn = document.getElementById('loadMoreAlertsBtn');
+      if (alerts.length > visibleAlerts.length) {
+        if (!loadMoreBtn) {
+          loadMoreBtn = document.createElement('button');
+          loadMoreBtn.id = 'loadMoreAlertsBtn';
+          loadMoreBtn.className = 'btn btn-secondary';
+          loadMoreBtn.style.margin = 'var(--space-4) auto';
+          loadMoreBtn.style.display = 'block';
+          loadMoreBtn.textContent = 'Load More Alerts';
+          loadMoreBtn.onclick = () => {
+            appState.alertPage = (appState.alertPage || 1) + 1;
+            renderAlertsList();
+          };
+          container.parentNode.insertBefore(loadMoreBtn, container.nextSibling);
+        }
+      } else if (loadMoreBtn) {
+        loadMoreBtn.remove();
+      }
+    }
+
+    function ackAlert(id) {
+      if (!appState.acknowledgedAlerts) appState.acknowledgedAlerts = new Set();
+      if (appState.acknowledgedAlerts.has(id)) {
+        appState.acknowledgedAlerts.delete(id);
+      } else {
+        appState.acknowledgedAlerts.add(id);
+      }
+      renderAlertsList();
+    }
+
+    function notifyFacility(facility) {
+      showToast(`Notification request sent for ${facility}`);
     }
 
     function snoozeAlert(id) {
@@ -4177,16 +4163,6 @@
         appState.snoozedAlerts.delete(id);
       } else {
         appState.snoozedAlerts.add(id);
-        // Persist snooze to server (extract alert rule ID from the alert key)
-        if (AUTH_TOKEN && !IS_SHARE_VIEW) {
-          const parts = id.split('_');
-          const ruleId = parts[parts.length - 1];
-          const matchingRule = appState.alertRules.find(r => String(r.id) === ruleId);
-          if (matchingRule) {
-            apiCall('POST', '/api/alerts/' + matchingRule.id + '/snooze', { minutes: 60 })
-              .catch(e => console.warn('Failed to snooze alert:', e));
-          }
-        }
       }
       renderAlerts();
     }
@@ -5049,7 +5025,6 @@
       renderOverview();
       renderFacilitySelector();
       renderAlertConfig();
-      renderAlertRules();
       renderAlerts();
       renderModelPerfTable();
 
