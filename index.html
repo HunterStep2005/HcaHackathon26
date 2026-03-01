@@ -4349,22 +4349,11 @@
       }
     }
 
-    var _saveThresholdTimer = null;
     function saveThresholdsToRole() {
       var role = appState.roles[appState.activeRole];
       if (role) {
         role.alertThresholds = JSON.parse(JSON.stringify(appState.alertThresholds));
       }
-      // Debounced persist to server (500ms after last change)
-      clearTimeout(_saveThresholdTimer);
-      _saveThresholdTimer = setTimeout(function() {
-        if (AUTH_TOKEN && !IS_SHARE_VIEW) {
-          // Always use my-role endpoint — works for any authenticated user
-          apiCall('PUT', '/api/roles/my-role', {
-            alert_thresholds: appState.alertThresholds
-          }).catch(e => console.warn('Failed to save alert thresholds:', e));
-        }
-      }, 500);
     }
 
     function switchActiveRole(roleName) {
@@ -4405,8 +4394,7 @@
           name: name,
           facilities: newRole.facilities,
           metrics: newRole.metrics,
-          kpis: newRole.kpis,
-          alert_thresholds: newRole.alertThresholds || null
+          kpis: newRole.kpis
         }).then(saved => {
           newRole._serverId = saved.id;
           newRole._isDefault = false;
@@ -4489,8 +4477,7 @@
           name: name,
           facilities: role.facilities,
           metrics: role.metrics,
-          kpis: role.kpis,
-          alert_thresholds: role.alertThresholds || null
+          kpis: role.kpis
         }).catch(e => console.warn('Failed to save role config:', e));
       }
 
@@ -4634,8 +4621,7 @@
         apiCall('PUT', '/api/roles/my-role', {
           facilities: role.facilities,
           metrics: role.metrics,
-          kpis: role.kpis,
-          alert_thresholds: role.alertThresholds || null
+          kpis: role.kpis
         }).catch(e => console.warn('Failed to save CEO config:', e));
       }
 
