@@ -2380,8 +2380,8 @@
 
           <div class="section-header">
             <div>
-              <div class="section-title">Active Alerts</div>
-              <div class="section-subtitle">Generated from current data and forecasts</div>
+              <div class="section-title">Active Alerts <span id="alertCount" style="font-size:var(--text-xs);font-weight:400;color:var(--color-text-muted);margin-left:var(--space-2);"></span></div>
+              <div class="section-subtitle">Historical incidents from census data — filter by facility, severity, or time range</div>
             </div>
           </div>
           <div class="alerts-feed" id="alertsFeed"></div>
@@ -2599,6 +2599,9 @@
       theme: 'light',
       alertRules: [],
       snoozedAlerts: new Set(),
+      acknowledgedAlerts: new Set(),
+      currentAlerts: [],
+      alertPage: 1,
       settings: { defaultView: 'overview' },
       divisions: {
         'Division A': [],
@@ -3900,10 +3903,22 @@
       const visibleIds = getVisibleFacilities();
       sel.innerHTML = '<option value="all">All Facilities</option>' +
         visibleIds.map(id => `<option value="${id}">${DATA.facilities[id].location}</option>`).join('');
-      sel.addEventListener('change', renderAlerts);
 
+      // Bind filter change listeners (only once)
+      if (!sel._bound) {
+        sel.addEventListener('change', () => { appState.alertPage = 1; renderAlerts(); });
+        sel._bound = true;
+      }
       const timeSel = document.getElementById('alertTimeRange');
-      if (timeSel) timeSel.addEventListener('change', renderAlerts);
+      if (timeSel && !timeSel._bound) {
+        timeSel.addEventListener('change', () => { appState.alertPage = 1; renderAlerts(); });
+        timeSel._bound = true;
+      }
+      const sevSel = document.getElementById('alertSeverity');
+      if (sevSel && !sevSel._bound) {
+        sevSel.addEventListener('change', () => { appState.alertPage = 1; renderAlerts(); });
+        sevSel._bound = true;
+      }
     }
 
     function generateAlerts() {
@@ -4033,6 +4048,9 @@
       const alerts = generateAlerts();
       syncAlertsToNotifications(alerts);
       appState.currentAlerts = alerts;
+      // Update count badge
+      const countEl = document.getElementById('alertCount');
+      if (countEl) countEl.textContent = alerts.length > 0 ? `(${alerts.length} incident${alerts.length !== 1 ? 's' : ''})` : '';
       renderAlertsList();
     }
 
