@@ -1478,6 +1478,172 @@
       }
     }
 
+    .alert-filters-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-3);
+      margin-bottom: var(--space-4);
+    }
+
+    .threshold-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--space-3);
+    }
+    @media (min-width: 768px) {
+      .threshold-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .threshold-card {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-3) var(--space-4);
+      background: var(--color-surface-2);
+    }
+
+    .threshold-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-3);
+    }
+
+    .threshold-label {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-weight: 600;
+      font-size: var(--text-sm);
+      color: var(--color-text);
+    }
+
+    .threshold-sliders {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+      transition: opacity 0.18s ease;
+    }
+    .threshold-sliders.disabled {
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    .slider-row {
+      display: grid;
+      grid-template-columns: 80px 1fr 44px;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .slider-label {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      color: var(--color-text-muted);
+    }
+
+    .severity-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .severity-dot.warning { background: var(--yellow); }
+    .severity-dot.critical { background: var(--red); }
+
+    .slider-value {
+      font-size: var(--text-xs);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      color: var(--color-text);
+    }
+
+    /* Range slider styling */
+    .threshold-range {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+    .threshold-range.warning {
+      background: linear-gradient(to right, var(--yellow) 0%, var(--yellow) var(--pct, 70%), var(--color-border) var(--pct, 70%), var(--color-border) 100%);
+    }
+    .threshold-range.critical {
+      background: linear-gradient(to right, var(--red) 0%, var(--red) var(--pct, 90%), var(--color-border) var(--pct, 90%), var(--color-border) 100%);
+    }
+    .threshold-range::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--color-surface);
+      border: 2px solid var(--color-text-muted);
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      transition: border-color 0.18s ease;
+    }
+    .threshold-range.warning::-webkit-slider-thumb { border-color: var(--yellow); }
+    .threshold-range.critical::-webkit-slider-thumb { border-color: var(--red); }
+    .threshold-range::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--color-surface);
+      border: 2px solid var(--color-text-muted);
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .threshold-range.warning::-moz-range-thumb { border-color: var(--yellow); }
+    .threshold-range.critical::-moz-range-thumb { border-color: var(--red); }
+    .threshold-range::-moz-range-track { background: transparent; }
+
+    /* Toggle switch */
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+      cursor: pointer;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: var(--color-border);
+      border-radius: 20px;
+      transition: background 0.18s ease;
+    }
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      left: 3px;
+      bottom: 3px;
+      background: var(--color-surface);
+      border-radius: 50%;
+      transition: transform 0.18s ease;
+    }
+    .toggle-switch input:checked + .toggle-slider {
+      background: var(--color-primary);
+    }
+    .toggle-switch input:checked + .toggle-slider::before {
+      transform: translateX(16px);
+    }
+
     .form-group label {
       display: block;
       font-size: 11px;
@@ -2177,6 +2343,10 @@
     .auth-card .auth-toggle a {
       color: var(--color-primary);
       cursor: pointer;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .auth-card .auth-toggle a:hover {
       text-decoration: underline;
     }
     .auth-card .demo-accounts {
@@ -2186,15 +2356,17 @@
       border-radius: var(--radius-md);
       font-size: var(--text-xs);
       color: var(--color-text-muted);
+      -webkit-tap-highlight-color: transparent;
     }
     .auth-card .demo-accounts strong { color: var(--color-text); }
     .auth-card .demo-accounts .demo-row {
       display: flex;
       justify-content: space-between;
-      padding: 2px 0;
       cursor: pointer;
       border-radius: 4px;
       padding: 2px 4px;
+      text-decoration: none;
+      -webkit-tap-highlight-color: transparent;
     }
     .auth-card .demo-accounts .demo-row:hover {
       background: var(--color-border);
@@ -2406,18 +2578,10 @@
         <div class="tab-panel" id="tab-alerts">
           <div class="alerts-config">
             <h3><i data-lucide="sliders-horizontal"></i> Alert Configuration</h3>
-            <div class="alert-form" id="alertForm">
+            <div class="alert-filters-row">
               <div class="form-group">
                 <label>Facility</label>
                 <select id="alertFacility"></select>
-              </div>
-              <div class="form-group">
-                <label>Severity</label>
-                <select id="alertSeverity">
-                  <option value="all">All</option>
-                  <option value="critical">Critical Only</option>
-                  <option value="warning">Warning Only</option>
-                </select>
               </div>
               <div class="form-group">
                 <label>Time Range</label>
@@ -2429,12 +2593,64 @@
                 </select>
               </div>
             </div>
+            <div class="threshold-grid">
+              <!-- Bed Occupancy -->
+              <div class="threshold-card">
+                <div class="threshold-header">
+                  <div class="threshold-label">
+                    <i data-lucide="bed-double" style="width:16px;height:16px;"></i>
+                    <span>Bed Occupancy</span>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="threshBedEnabled" checked onchange="toggleAlertType('bed', this.checked)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="threshold-sliders" id="threshBedSliders">
+                  <div class="slider-row warning">
+                    <div class="slider-label"><span class="severity-dot warning"></span>Warning</div>
+                    <input type="range" id="threshBedWarning" min="50" max="100" value="85" class="threshold-range warning" oninput="updateThreshold('bed','warning',this.value)">
+                    <span class="slider-value" id="threshBedWarningVal">85%</span>
+                  </div>
+                  <div class="slider-row critical">
+                    <div class="slider-label"><span class="severity-dot critical"></span>Critical</div>
+                    <input type="range" id="threshBedCritical" min="50" max="100" value="95" class="threshold-range critical" oninput="updateThreshold('bed','critical',this.value)">
+                    <span class="slider-value" id="threshBedCriticalVal">95%</span>
+                  </div>
+                </div>
+              </div>
+              <!-- ICU Occupancy -->
+              <div class="threshold-card">
+                <div class="threshold-header">
+                  <div class="threshold-label">
+                    <i data-lucide="heart-pulse" style="width:16px;height:16px;"></i>
+                    <span>ICU Occupancy</span>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="threshIcuEnabled" checked onchange="toggleAlertType('icu', this.checked)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="threshold-sliders" id="threshIcuSliders">
+                  <div class="slider-row warning">
+                    <div class="slider-label"><span class="severity-dot warning"></span>Warning</div>
+                    <input type="range" id="threshIcuWarning" min="50" max="100" value="80" class="threshold-range warning" oninput="updateThreshold('icu','warning',this.value)">
+                    <span class="slider-value" id="threshIcuWarningVal">80%</span>
+                  </div>
+                  <div class="slider-row critical">
+                    <div class="slider-label"><span class="severity-dot critical"></span>Critical</div>
+                    <input type="range" id="threshIcuCritical" min="50" max="100" value="90" class="threshold-range critical" oninput="updateThreshold('icu','critical',this.value)">
+                    <span class="slider-value" id="threshIcuCriticalVal">90%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="section-header">
             <div>
               <div class="section-title">Active Alerts <span id="alertCount" style="font-size:var(--text-xs);font-weight:400;color:var(--color-text-muted);margin-left:var(--space-2);"></span></div>
-              <div class="section-subtitle">Historical incidents from census data — filter by facility, severity, or time range</div>
+              <div class="section-subtitle">Historical incidents from census data — filtered by your threshold configuration above</div>
             </div>
           </div>
           <div class="alerts-feed" id="alertsFeed"></div>
@@ -2637,6 +2853,10 @@
       acknowledgedAlerts: new Set(),
       currentAlerts: [],
       alertPage: 1,
+      alertThresholds: {
+        bed: { enabled: true, warning: 85, critical: 95 },
+        icu: { enabled: true, warning: 80, critical: 90 }
+      },
       settings: { defaultView: 'overview' },
       divisions: {
         'Division A': [],
@@ -3913,18 +4133,62 @@
         timeSel.addEventListener('change', () => { appState.alertPage = 1; renderAlerts(); });
         timeSel._bound = true;
       }
-      const sevSel = document.getElementById('alertSeverity');
-      if (sevSel && !sevSel._bound) {
-        sevSel.addEventListener('change', () => { appState.alertPage = 1; renderAlerts(); });
-        sevSel._bound = true;
+      // Sync threshold UI with state
+      syncThresholdUI();
+    }
+
+    function syncThresholdUI() {
+      var th = appState.alertThresholds;
+      var bedEn = document.getElementById('threshBedEnabled');
+      var icuEn = document.getElementById('threshIcuEnabled');
+      if (bedEn) bedEn.checked = th.bed.enabled;
+      if (icuEn) icuEn.checked = th.icu.enabled;
+
+      ['bed', 'icu'].forEach(function(type) {
+        ['warning', 'critical'].forEach(function(sev) {
+          var slider = document.getElementById('thresh' + type.charAt(0).toUpperCase() + type.slice(1) + sev.charAt(0).toUpperCase() + sev.slice(1));
+          var valSpan = document.getElementById('thresh' + type.charAt(0).toUpperCase() + type.slice(1) + sev.charAt(0).toUpperCase() + sev.slice(1) + 'Val');
+          if (slider) {
+            slider.value = th[type][sev];
+            var pct = ((th[type][sev] - 50) / 50) * 100;
+            slider.style.setProperty('--pct', pct + '%');
+          }
+          if (valSpan) valSpan.textContent = th[type][sev] + '%';
+        });
+        var slidersEl = document.getElementById('thresh' + type.charAt(0).toUpperCase() + type.slice(1) + 'Sliders');
+        if (slidersEl) {
+          slidersEl.classList.toggle('disabled', !th[type].enabled);
+        }
+      });
+    }
+
+    function updateThreshold(type, sev, val) {
+      val = parseInt(val);
+      appState.alertThresholds[type][sev] = val;
+      // Enforce: warning must be <= critical
+      if (sev === 'warning' && val > appState.alertThresholds[type].critical) {
+        appState.alertThresholds[type].critical = val;
       }
+      if (sev === 'critical' && val < appState.alertThresholds[type].warning) {
+        appState.alertThresholds[type].warning = val;
+      }
+      syncThresholdUI();
+      appState.alertPage = 1;
+      renderAlerts();
+    }
+
+    function toggleAlertType(type, enabled) {
+      appState.alertThresholds[type].enabled = enabled;
+      syncThresholdUI();
+      appState.alertPage = 1;
+      renderAlerts();
     }
 
     function generateAlerts() {
       const alerts = [];
       const facilitySel = document.getElementById('alertFacility') ? document.getElementById('alertFacility').value : 'all';
       const timeSel = document.getElementById('alertTimeRange') ? document.getElementById('alertTimeRange').value : 'today';
-      const sevSel = document.getElementById('alertSeverity') ? document.getElementById('alertSeverity').value : 'all';
+      const th = appState.alertThresholds;
       const visibleIds = getVisibleFacilities();
 
       const idsToCheck = facilitySel === 'all' ? visibleIds : [facilitySel];
@@ -3949,7 +4213,7 @@
         const cData = DATA.chartData[id];
         if (!cData) return;
 
-        const checkSeries = (seriesName, capacity, metricName) => {
+        const checkSeries = (seriesName, capacity, metricName, warnThresh, critThresh) => {
           if (!cData[seriesName]) return;
 
           let currentIncident = null;
@@ -3960,8 +4224,8 @@
 
             const pct = capacity > 0 ? (pt.v / capacity) * 100 : 0;
             let currentLevel = null;
-            if (pct >= 95) currentLevel = 'critical';
-            else if (pct >= 85) currentLevel = 'warning';
+            if (pct >= critThresh) currentLevel = 'critical';
+            else if (pct >= warnThresh) currentLevel = 'warning';
 
             if (currentLevel) {
               if (!currentIncident || currentIncident.level !== currentLevel) {
@@ -4001,16 +4265,15 @@
           }
         };
 
-        checkSeries('Total Census', capacityBed, 'Bed');
-        checkSeries('ICU Occupancy', capacityICU, 'ICU');
+        if (th.bed.enabled) {
+          checkSeries('Total Census', capacityBed, 'Bed', th.bed.warning, th.bed.critical);
+        }
+        if (th.icu.enabled) {
+          checkSeries('ICU Occupancy', capacityICU, 'ICU', th.icu.warning, th.icu.critical);
+        }
       });
 
-      let filteredAlerts = alerts;
-      if (sevSel !== 'all') {
-        filteredAlerts = alerts.filter(a => a.level === sevSel);
-      }
-
-      const formattedAlerts = filteredAlerts.map(a => {
+      const formattedAlerts = alerts.map(a => {
         let durationStr = "";
         const sTime = new Date(a.startTime);
         const eTime = new Date(a.endTime);
@@ -4619,7 +4882,7 @@
       var html = '';
       visibleIds.forEach(function(fid) {
         var fac = DATA.facilities[fid];
-        html += '<label><input type="checkbox" data-group="share-fac" value="' + fid + '" checked> ' + fac.location + ' <span style="color:var(--color-text-muted);font-size:var(--text-xs);">' + fid + '</span></label>';
+        html += '<label><input type="checkbox" data-group="share-fac" value="' + fid + '" checked> ' + fac.location + '</label>';
       });
       container.innerHTML = html;
     }
