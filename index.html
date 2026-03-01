@@ -624,6 +624,20 @@
       background-color: var(--color-surface-offset);
     }
 
+    [data-theme="dark"] .dropdown-content {
+      background-color: var(--color-surface-2);
+      border-color: #444c56;
+      box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="dark"] .dropdown-content button {
+      color: #e6edf3;
+    }
+
+    [data-theme="dark"] .dropdown-content button:hover {
+      background-color: #30363d;
+    }
+
     .dropdown:hover .dropdown-content,
     .dropdown.open .dropdown-content {
       display: block;
@@ -2356,6 +2370,10 @@
             <i data-lucide="bell"></i>
             Alerts
           </button>
+          <button class="sidebar-item" data-tab="export" onclick="switchTab('export')">
+            <i data-lucide="share-2"></i>
+            Share & Export
+          </button>
           <button class="sidebar-item" data-tab="settings" onclick="switchTab('settings')">
             <i data-lucide="settings"></i>
             Settings
@@ -2422,15 +2440,11 @@
           <div class="alerts-feed" id="alertsFeed"></div>
         </div>
 
-        <!-- SETTINGS TAB -->
-        <div class="tab-panel" id="tab-settings">
-          <!-- Share & Export -->
+        <!-- SHARE & EXPORT TAB -->
+        <div class="tab-panel" id="tab-export">
           <div class="settings-section">
-            <h3><i data-lucide="share-2"></i> Share & Export</h3>
-            <div style="border:1px solid var(--color-border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:var(--space-3);">
-              <div style="padding:var(--space-3) var(--space-4);background:var(--color-surface-offset);border-bottom:1px solid var(--color-border);">
-                <strong style="font-size:var(--text-sm);">Create Share Link</strong>
-              </div>
+            <h3><i data-lucide="link"></i> Create Share Link</h3>
+            <div style="border:1px solid var(--color-border);border-radius:var(--radius-lg);overflow:hidden;">
               <div style="padding:var(--space-3) var(--space-4);">
                 <div class="share-options">
                   <div class="share-option-row">
@@ -2463,6 +2477,9 @@
                 </div>
               </div>
             </div>
+          </div>
+          <div class="settings-section">
+            <h3><i data-lucide="download"></i> Export Data</h3>
             <div class="export-row">
               <div class="dropdown">
                 <button class="btn btn-secondary" style="display:flex;align-items:center;gap:4px;">
@@ -2490,7 +2507,10 @@
               </div>
             </div>
           </div>
+        </div>
 
+        <!-- SETTINGS TAB -->
+        <div class="tab-panel" id="tab-settings">
           <!-- Role & Access (dynamic based on user role) -->
           <div id="roleAccessSection"></div>
 
@@ -2541,6 +2561,10 @@
       <button class="bottom-nav-item" data-tab="alerts" onclick="switchTab('alerts')">
         <i data-lucide="bell"></i>
         <span>Alerts</span>
+      </button>
+      <button class="bottom-nav-item" data-tab="export" onclick="switchTab('export')">
+        <i data-lucide="share-2"></i>
+        <span>Export</span>
       </button>
       <button class="bottom-nav-item" data-tab="settings" onclick="switchTab('settings')">
         <i data-lucide="settings"></i>
