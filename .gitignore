@@ -1,0 +1,4 @@
+node_modules/
+dashboard.db
+dashboard.db-wal
+dashboard.db-shm
