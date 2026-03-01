@@ -2452,6 +2452,13 @@
                     <input type="text" id="shareDescription" placeholder="e.g. Morning census snapshot" maxlength="100">
                   </div>
                   <div class="share-option-row">
+                    <label>Facilities</label>
+                    <div style="display:flex;flex-direction:column;gap:4px;">
+                      <label style="font-size:var(--text-xs);color:var(--color-text-muted);cursor:pointer;"><input type="checkbox" id="shareSelectAll" onchange="toggleAllShareFacs(this)" checked> Select All</label>
+                      <div id="shareFacList" class="role-check-grid" style="margin-top:2px;"></div>
+                    </div>
+                  </div>
+                  <div class="share-option-row">
                     <label>Expires</label>
                     <select id="shareExpiry">
                       <option value="24">24 hours</option>
@@ -2613,6 +2620,7 @@
     let AUTH_TOKEN = null;
     let AUTH_USER = null;
     let IS_SHARE_VIEW = false;
+    let SHARE_FACILITIES = null; // array of facility IDs for shared view, null = all
     let SHARE_TOKEN = null;
     let authMode = 'login'; // 'login' or 'register'
 
@@ -2856,11 +2864,14 @@
     }
 
     function applyShareConfig(config) {
-      if (config.tab) appState.currentTab = config.tab;
+      appState.currentTab = 'overview'; // always start on overview for shared views
       if (config.facility) appState.selectedFacility = config.facility;
       if (config.metric) appState.selectedMetric = config.metric;
       if (config.chartRange) appState.chartRange = config.chartRange;
       if (config.theme) appState.theme = config.theme;
+      if (config.facilities && Array.isArray(config.facilities)) {
+        SHARE_FACILITIES = config.facilities;
+      }
     }
 
     /* ============================================
@@ -2915,6 +2926,10 @@
     function getVisibleFacilities() {
       if (!DATA) return [];
       const allIds = Object.keys(DATA.facilities);
+      // Shared view: only show selected facilities
+      if (IS_SHARE_VIEW && SHARE_FACILITIES && SHARE_FACILITIES.length > 0) {
+        return SHARE_FACILITIES.filter(id => allIds.includes(id));
+      }
       const role = appState.roles[appState.activeRole];
       if (!role) return allIds;
       if (role.facilities === '__all__') return allIds;
@@ -3117,15 +3132,28 @@
     function switchTab(tab) {
       appState.currentTab = tab;
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-      document.getElementById('tab-' + tab).classList.add('active');
+      var tabEl = document.getElementById('tab-' + tab);
+      if (tabEl) tabEl.classList.add('active');
       document.querySelectorAll('.sidebar-item, .bottom-nav-item').forEach(b => {
         b.classList.toggle('active', b.dataset.tab === tab);
       });
-      document.getElementById('mainContent').scrollTop = 0;
+      // Update share nav buttons if present
+      document.querySelectorAll('.share-nav-btn').forEach(function(b) {
+        if (b.dataset.tab === tab) {
+          b.classList.remove('btn-secondary');
+          b.classList.add('btn-primary');
+        } else {
+          b.classList.remove('btn-primary');
+          b.classList.add('btn-secondary');
+        }
+      });
+      var mc = document.getElementById('mainContent');
+      if (mc) mc.scrollTop = 0;
       if (tab === 'facilities' && appState.selectedFacility) {
         renderFacilityDetail(appState.selectedFacility);
       }
       if (tab === 'alerts') renderAlerts();
+      if (tab === 'export') populateShareFacilities();
     }
 
     /* ============================================
@@ -4584,19 +4612,48 @@
     // ── Enhanced Share Link ──────────────────────────────────
     let lastGeneratedShareUrl = '';
 
+    function populateShareFacilities() {
+      var container = document.getElementById('shareFacList');
+      if (!container || !DATA) return;
+      var visibleIds = getVisibleFacilities();
+      var html = '';
+      visibleIds.forEach(function(fid) {
+        var fac = DATA.facilities[fid];
+        html += '<label><input type="checkbox" data-group="share-fac" value="' + fid + '" checked> ' + fac.location + ' <span style="color:var(--color-text-muted);font-size:var(--text-xs);">' + fid + '</span></label>';
+      });
+      container.innerHTML = html;
+    }
+
+    function toggleAllShareFacs(checkbox) {
+      document.querySelectorAll('input[data-group="share-fac"]').forEach(function(cb) { cb.checked = checkbox.checked; });
+    }
+
+    function getSelectedShareFacs() {
+      var selected = [];
+      document.querySelectorAll('input[data-group="share-fac"]').forEach(function(cb) { if (cb.checked) selected.push(cb.value); });
+      return selected;
+    }
+
+
     async function createShareLink() {
       if (!AUTH_TOKEN || IS_SHARE_VIEW) {
         fallbackShareLink();
         return;
       }
       try {
+        const selectedFacs = getSelectedShareFacs();
+        if (selectedFacs.length === 0) {
+          showToast('Please select at least one facility');
+          return;
+        }
         const viewConfig = {
-          tab: appState.currentTab,
+          tab: 'overview',
           facility: appState.selectedFacility,
           metric: appState.selectedMetric,
           chartRange: appState.chartRange,
           theme: appState.theme,
           role: appState.activeRole,
+          facilities: selectedFacs,
           description: document.getElementById('shareDescription').value.trim() || 'Dashboard snapshot',
           createdAt: new Date().toISOString()
         };
@@ -4638,12 +4695,18 @@
     }
 
     function fallbackShareLink() {
+      var selectedFacs = getSelectedShareFacs();
+      if (selectedFacs.length === 0) {
+        showToast('Please select at least one facility');
+        return;
+      }
       const params = new URLSearchParams();
-      params.set('tab', appState.currentTab);
+      params.set('tab', 'overview');
       if (appState.selectedFacility) params.set('fac', appState.selectedFacility);
       params.set('metric', appState.selectedMetric);
       params.set('range', appState.chartRange);
       params.set('role', appState.activeRole);
+      params.set('facilities', selectedFacs.join(','));
       const url = window.location.origin + window.location.pathname + '#' + params.toString();
       lastGeneratedShareUrl = url;
       document.getElementById('shareResultUrl').textContent = url;
@@ -4876,6 +4939,15 @@
       if (params.has('metric')) appState.selectedMetric = params.get('metric');
       if (params.has('range')) appState.chartRange = params.get('range');
       if (params.has('role')) appState.role = params.get('role');
+      // Handle hash-based share links with facility list
+      if (params.has('facilities')) {
+        var facStr = params.get('facilities');
+        if (facStr) {
+          SHARE_FACILITIES = facStr.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+          IS_SHARE_VIEW = true;
+          appState.currentTab = 'overview';
+        }
+      }
     }
 
     async function loadDashboard() {
@@ -4955,6 +5027,31 @@
       renderAlertConfig();
       renderAlerts();
       renderModelPerfTable();
+      populateShareFacilities();
+
+      // If share view, strip to read-only
+      if (IS_SHARE_VIEW) {
+        document.querySelector('.sidebar').style.display = 'none';
+        document.querySelector('.bottom-nav').style.display = 'none';
+        document.querySelector('.main-content').style.marginLeft = '0';
+        // Hide all tabs except overview and facilities
+        var hideTabs = ['tab-alerts', 'tab-export', 'tab-settings'];
+        hideTabs.forEach(function(tid) {
+          var el = document.getElementById(tid);
+          if (el) el.remove();
+        });
+        // Add a shared view banner
+        var banner = document.createElement('div');
+        banner.style.cssText = 'padding:8px 16px;background:var(--color-primary);color:#fff;text-align:center;font-size:var(--text-sm);font-family:Inter,sans-serif;';
+        var facCount = SHARE_FACILITIES ? SHARE_FACILITIES.length : Object.keys(DATA.facilities).length;
+        banner.innerHTML = '<strong>Shared View</strong> — Read-only snapshot of ' + facCount + ' facilit' + (facCount === 1 ? 'y' : 'ies');
+        document.getElementById('app').prepend(banner);
+        // Only allow overview and facilities tabs via simple inline nav
+        var shareNav = document.createElement('div');
+        shareNav.style.cssText = 'display:flex;gap:var(--space-2);padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--color-border);background:var(--color-surface);';
+        shareNav.innerHTML = '<button class="btn btn-primary btn-sm share-nav-btn" data-tab="overview" onclick="switchTab(\'overview\')">Overview</button><button class="btn btn-secondary btn-sm share-nav-btn" data-tab="facilities" onclick="switchTab(\'facilities\')">Facilities</button>';
+        document.querySelector('.main-content').prepend(shareNav);
+      }
 
       // Default facility detail
       if (appState.selectedFacility) {
@@ -4992,6 +5089,18 @@
       if (isShare) {
         // Share link with password — waiting for password entry
         return;
+      }
+
+      // Check for hash-based share links (fallback share URLs)
+      var hash = window.location.hash.slice(1);
+      if (hash) {
+        var hashParams = new URLSearchParams(hash);
+        if (hashParams.has('facilities')) {
+          // Hash-based share link — skip login, load directly
+          document.getElementById('authOverlay').classList.add('hidden');
+          await loadDashboard();
+          return;
+        }
       }
 
       // No share link — show auth overlay (it's already visible by default)
