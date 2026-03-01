@@ -3129,8 +3129,7 @@
        THEME
        ============================================ */
     function initTheme() {
-      const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      appState.theme = isDark ? 'dark' : 'light';
+      appState.theme = 'dark';
       document.documentElement.setAttribute('data-theme', appState.theme);
       updateThemeIcon();
     }
@@ -3337,13 +3336,13 @@
       <div class="detail-kpi">
         <div class="detail-kpi-label">Patient Acuity</div>
         <div class="detail-kpi-value">${formatPct(f.latestCensus > 0 ? (f.latestICU / f.latestCensus) * 100 : 0)}</div>
-        <div class="detail-kpi-sub">ICU / Total Occupants</div>
+        <div class="detail-kpi-sub">ICU / Census</div>
       </div>
 
       <div class="detail-kpi">
         <div class="detail-kpi-label">Peak Activity</div>
         <div class="detail-kpi-value" style="font-size: 1.25rem;">${getPeakActivityHours7d(id)}</div>
-        <div class="detail-kpi-sub">Busiest hour (7-day ref)</div>
+        <div class="detail-kpi-sub">(7-day ref)</div>
       </div>
     </div>
 
@@ -3487,7 +3486,7 @@
 
       // Datasets
       const histDataset = {
-        label: metric + ' (Actual)',
+        label: (metric === 'Total Census' ? 'Census' : metric) + ' (Actual)',
         data: historical.map(p => ({ x: new Date(p.t), y: p.v })),
         borderColor: 'rgb(0, 60, 113)',
         backgroundColor: 'rgba(0, 60, 113, 0.1)',
@@ -3510,6 +3509,9 @@
         if (range === '24h') {
           var forecastCutoff = lastHistTime + 24 * 3600000;
           filteredForecast = forecastRaw.filter(function(p) { return new Date(p.timestamp).getTime() <= forecastCutoff; });
+        } else if (range === '3d') {
+          var forecastCutoff3d = lastHistTime + 3 * 24 * 3600000;
+          filteredForecast = forecastRaw.filter(function(p) { return new Date(p.timestamp).getTime() <= forecastCutoff3d; });
         }
         const forecastData = [
           { x: new Date(lastHist.t), y: lastHist.v },
@@ -3525,7 +3527,7 @@
         ];
 
         datasets.push({
-          label: metric + ' (Forecast)',
+          label: (metric === 'Total Census' ? 'Census' : metric) + ' (Forecast)',
           data: forecastData,
           borderColor: 'rgb(232, 119, 34)',
           borderWidth: 2,
@@ -3587,6 +3589,8 @@
       if (forecastRaw.length > 0) {
         if (range === '24h') {
           dataMaxTime = dataMaxTime + 24 * 3600000;
+        } else if (range === '3d') {
+          dataMaxTime = dataMaxTime + 3 * 24 * 3600000;
         } else {
           var lastForecast = forecastRaw[forecastRaw.length - 1];
           var fTime = new Date(lastForecast.timestamp).getTime();
