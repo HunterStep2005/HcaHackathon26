@@ -4913,7 +4913,8 @@
       }).format(new Date(lu));
 
       // Dark mode checkbox sync
-      document.getElementById('settingsDarkMode').checked = appState.theme === 'dark';
+      var dmCb = document.getElementById('settingsDarkMode');
+      if (dmCb) dmCb.checked = appState.theme === 'dark';
 
       // Update user badge
       if (AUTH_USER) {
