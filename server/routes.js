@@ -134,7 +134,7 @@ router.get('/roles', requireAuth, async (req, res) => {
   } catch (err) { console.error('Get roles error:', err); res.status(500).json({ error: 'Server error' }); }
 });
 
-router.post('/roles', requireAuth, requireRole('CEO'), async (req, res) => {
+router.post('/roles', requireAuth, requireRole('System Admin'), async (req, res) => {
   try {
     const db = await getDb();
     const { name, facilities, metrics, kpis } = req.body;
@@ -147,13 +147,36 @@ router.post('/roles', requireAuth, requireRole('CEO'), async (req, res) => {
   }
 });
 
-router.put('/roles/:id', requireAuth, requireRole('CEO'), async (req, res) => {
+// CEO can edit only their own role's config (facilities, metrics, kpis — not name)
+// Must be before /roles/:id so Express doesn't match 'my-role' as an :id param
+router.put('/roles/my-role', requireAuth, requireRole('CEO'), async (req, res) => {
+  try {
+    const db = await getDb();
+    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(req.user.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const role = db.prepare('SELECT * FROM roles WHERE name = ?').get(user.role);
+    if (!role) return res.status(404).json({ error: 'Role not found' });
+    const { facilities, metrics, kpis } = req.body;
+    const fields = [], values = [];
+    if (facilities !== undefined) { fields.push('facilities = ?'); values.push(JSON.stringify(facilities)); }
+    if (metrics !== undefined) { fields.push('metrics = ?'); values.push(JSON.stringify(metrics)); }
+    if (kpis !== undefined) { fields.push('kpis = ?'); values.push(JSON.stringify(kpis)); }
+    if (fields.length === 0) return res.status(400).json({ error: 'No fields to update' });
+    values.push(role.id);
+    db.prepare('UPDATE roles SET ' + fields.join(', ') + ' WHERE id = ?').run(...values);
+    const updated = db.prepare('SELECT * FROM roles WHERE id = ?').get(role.id);
+    res.json({ ...updated, facilities: JSON.parse(updated.facilities), metrics: JSON.parse(updated.metrics), kpis: JSON.parse(updated.kpis), is_default: !!updated.is_default });
+  } catch (err) { console.error('CEO self-edit error:', err); res.status(500).json({ error: 'Server error' }); }
+});
+
+router.put('/roles/:id', requireAuth, requireRole('System Admin'), async (req, res) => {
   try {
     const db = await getDb();
     const role = db.prepare('SELECT * FROM roles WHERE id = ?').get(req.params.id);
     if (!role) return res.status(404).json({ error: 'Role not found' });
-    const { facilities, metrics, kpis } = req.body;
+    const { name, facilities, metrics, kpis } = req.body;
     const fields = [], values = [];
+    if (name !== undefined) { fields.push('name = ?'); values.push(name); }
     if (facilities !== undefined) { fields.push('facilities = ?'); values.push(JSON.stringify(facilities)); }
     if (metrics !== undefined) { fields.push('metrics = ?'); values.push(JSON.stringify(metrics)); }
     if (kpis !== undefined) { fields.push('kpis = ?'); values.push(JSON.stringify(kpis)); }
@@ -165,7 +188,7 @@ router.put('/roles/:id', requireAuth, requireRole('CEO'), async (req, res) => {
   } catch (err) { console.error('Update role error:', err); res.status(500).json({ error: 'Server error' }); }
 });
 
-router.delete('/roles/:id', requireAuth, requireRole('CEO'), async (req, res) => {
+router.delete('/roles/:id', requireAuth, requireRole('System Admin'), async (req, res) => {
   try {
     const db = await getDb();
     const role = db.prepare('SELECT * FROM roles WHERE id = ?').get(req.params.id);

@@ -89,12 +89,26 @@ const SCHEMA = `
 // Seed data — runs only if tables are empty
 function seed(db) {
   const hasUsers = db.prepare('SELECT COUNT(*) as n FROM users').get();
-  if (hasUsers && hasUsers.n > 0) return; // Already seeded
+  if (hasUsers && hasUsers.n > 0) {
+    // Migration: ensure System Admin exists on existing DBs
+    const hasSysAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get('sysadmin@hca.demo');
+    if (!hasSysAdmin) {
+      console.log('Migrating: adding System Admin account...');
+      const sr = db.prepare('INSERT OR IGNORE INTO roles (name, facilities, metrics, kpis, is_default) VALUES (?, ?, ?, ?, 1)');
+      const m = JSON.stringify(['Total Census', 'ICU Occupancy', 'Admissions', 'Discharges', 'Births']);
+      const k = JSON.stringify(['census', 'bedUtil', 'icuUtil', 'admissions', 'discharges']);
+      sr.run('System Admin', '"__all__"', m, k);
+      const r = db.prepare('INSERT OR IGNORE INTO users (email, password_hash, display_name, role) VALUES (?, ?, ?, ?)').run('sysadmin@hca.demo', bcrypt.hashSync('demo123', 12), 'System Admin', 'System Admin');
+      if (r.changes > 0) db.prepare('INSERT OR IGNORE INTO user_preferences (user_id) VALUES (?)').run(r.lastInsertRowid);
+    }
+    return;
+  }
 
   console.log('Seeding demo data...');
   const m = JSON.stringify(['Total Census', 'ICU Occupancy', 'Admissions', 'Discharges', 'Births']);
   const k = JSON.stringify(['census', 'bedUtil', 'icuUtil', 'admissions', 'discharges']);
   const sr = db.prepare('INSERT OR IGNORE INTO roles (name, facilities, metrics, kpis, is_default) VALUES (?, ?, ?, ?, 1)');
+  sr.run('System Admin', '"__all__"', m, k);
   sr.run('CEO', '"__all__"', m, k);
   sr.run('Division VP', '[]', m, k);
   sr.run('Hospital Admin', '[]', m, k);
@@ -105,6 +119,7 @@ function seed(db) {
   const su = db.prepare('INSERT OR IGNORE INTO users (email, password_hash, display_name, role) VALUES (?, ?, ?, ?)');
   const sp = db.prepare('INSERT OR IGNORE INTO user_preferences (user_id) VALUES (?)');
   [
+    { email: 'sysadmin@hca.demo', name: 'System Admin', role: 'System Admin' },
     { email: 'ceo@hca.demo', name: 'Sam Hazen', role: 'CEO' },
     { email: 'vp@hca.demo', name: 'Division VP', role: 'Division VP' },
     { email: 'admin@hca.demo', name: 'Floor Admin', role: 'Hospital Admin' }
@@ -112,7 +127,7 @@ function seed(db) {
     const r = su.run(u.email, bcrypt.hashSync('demo123', 12), u.name, u.role);
     if (r.changes > 0) sp.run(r.lastInsertRowid);
   });
-  console.log('  Demo accounts: ceo@hca.demo / vp@hca.demo / admin@hca.demo (password: demo123)');
+  console.log('  Demo accounts: sysadmin@hca.demo / ceo@hca.demo / vp@hca.demo / admin@hca.demo (password: demo123)');
 }
 
 // Singleton
