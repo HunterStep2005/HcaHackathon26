@@ -2267,7 +2267,7 @@
       </div>
       <div class="demo-accounts">
         <strong>Demo Accounts</strong> (click to fill):
-        <div class="demo-row" onclick="fillDemo('sysadmin@hca.demo','demo123')">
+        <div class="demo-row" onclick="fillDemo('sysadmin@hca.demo','Hca$ecure!2026')">
           <span>System Admin</span><span>sysadmin@hca.demo</span>
         </div>
         <div class="demo-row" onclick="fillDemo('ceo@hca.demo','demo123')">
@@ -4284,13 +4284,6 @@
         // System Admin: full role management
         container.innerHTML = '<div class="settings-section">' +
           '<h3><i data-lucide="shield"></i> Role Management</h3>' +
-          '<div class="settings-row">' +
-            '<div>' +
-              '<div class="settings-row-label">Active Role</div>' +
-              '<div class="settings-row-desc">Switch between configured roles</div>' +
-            '</div>' +
-            '<select id="settingsActiveRole" onchange="switchActiveRole(this.value)"></select>' +
-          '</div>' +
           '<div style="border:1px solid var(--color-border);border-radius:var(--radius-lg);margin-top:var(--space-3);overflow:hidden;">' +
             '<div style="padding:var(--space-3) var(--space-4);background:var(--color-surface-offset);border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center;">' +
               '<strong style="font-size:var(--text-sm);">Configure Roles</strong>' +
@@ -4305,7 +4298,6 @@
             '</div>' +
           '</div>' +
         '</div>';
-        populateRoleDropdown();
         renderRoleConfig();
       } else if (perm === 'ceo') {
         // CEO: customize only their own role
