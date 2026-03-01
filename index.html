@@ -2372,35 +2372,8 @@
             </div>
           </div>
 
-          <!-- Role & Access -->
-          <div class="settings-section">
-            <h3><i data-lucide="shield"></i> Role Management</h3>
-
-            <div class="settings-row">
-              <div>
-                <div class="settings-row-label">Active Role</div>
-                <div class="settings-row-desc">Switch between configured roles</div>
-              </div>
-              <select id="settingsActiveRole" onchange="switchActiveRole(this.value)"></select>
-            </div>
-
-            <div
-              style="border:1px solid var(--color-border);border-radius:var(--radius-lg);margin-top:var(--space-3);overflow:hidden;">
-              <div
-                style="padding:var(--space-3) var(--space-4);background:var(--color-surface-offset);border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center;">
-                <strong style="font-size:var(--text-sm);">Configure Roles</strong>
-                <button class="btn btn-primary btn-sm" onclick="addNewRole()">+ New Role</button>
-              </div>
-              <div id="roleConfigList" style="padding:var(--space-3) var(--space-4);"></div>
-            </div>
-
-            <div class="settings-row" id="visibleFacilitiesRow" style="margin-top:var(--space-3);">
-              <div>
-                <div class="settings-row-label">Visible Facilities</div>
-                <div class="settings-row-desc" id="visibleFacilitiesDesc">Showing all 10 facilities</div>
-              </div>
-            </div>
-          </div>
+          <!-- Role & Access (dynamic based on user role) -->
+          <div id="roleAccessSection"></div>
 
           <!-- AI Transparency -->
           <div class="settings-section">
@@ -4186,6 +4159,7 @@
       // Persist to server
       if (AUTH_TOKEN && !IS_SHARE_VIEW && role._serverId) {
         apiCall('PUT', '/api/roles/' + role._serverId, {
+          name: name,
           facilities: role.facilities,
           metrics: role.metrics,
           kpis: role.kpis
@@ -4203,6 +4177,171 @@
       dd.innerHTML = Object.keys(appState.roles).map(function (r) {
         return '<option value="' + r + '"' + (r === appState.activeRole ? ' selected' : '') + '>' + r + '</option>';
       }).join('');
+    }
+
+    function getUserPermLevel() {
+      if (!AUTH_USER || !AUTH_USER.role) return 'viewer';
+      if (AUTH_USER.role === 'System Admin') return 'admin';
+      if (AUTH_USER.role === 'CEO') return 'ceo';
+      return 'viewer';
+    }
+
+    function renderRoleSection() {
+      var container = document.getElementById('roleAccessSection');
+      if (!container) return;
+      var perm = getUserPermLevel();
+
+      if (perm === 'admin') {
+        // System Admin: full role management
+        container.innerHTML = '<div class="settings-section">' +
+          '<h3><i data-lucide="shield"></i> Role Management</h3>' +
+          '<div class="settings-row">' +
+            '<div>' +
+              '<div class="settings-row-label">Active Role</div>' +
+              '<div class="settings-row-desc">Switch between configured roles</div>' +
+            '</div>' +
+            '<select id="settingsActiveRole" onchange="switchActiveRole(this.value)"></select>' +
+          '</div>' +
+          '<div style="border:1px solid var(--color-border);border-radius:var(--radius-lg);margin-top:var(--space-3);overflow:hidden;">' +
+            '<div style="padding:var(--space-3) var(--space-4);background:var(--color-surface-offset);border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center;">' +
+              '<strong style="font-size:var(--text-sm);">Configure Roles</strong>' +
+              '<button class="btn btn-primary btn-sm" onclick="addNewRole()">+ New Role</button>' +
+            '</div>' +
+            '<div id="roleConfigList" style="padding:var(--space-3) var(--space-4);"></div>' +
+          '</div>' +
+          '<div class="settings-row" id="visibleFacilitiesRow" style="margin-top:var(--space-3);">' +
+            '<div>' +
+              '<div class="settings-row-label">Visible Facilities</div>' +
+              '<div class="settings-row-desc" id="visibleFacilitiesDesc">Showing all 10 facilities</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+        populateRoleDropdown();
+        renderRoleConfig();
+      } else if (perm === 'ceo') {
+        // CEO: customize only their own role
+        container.innerHTML = '<div class="settings-section">' +
+          '<h3><i data-lucide="sliders"></i> My Dashboard Customization</h3>' +
+          '<div id="ceoRoleConfig"></div>' +
+          '<div class="settings-row" id="visibleFacilitiesRow" style="margin-top:var(--space-3);">' +
+            '<div>' +
+              '<div class="settings-row-label">Visible Facilities</div>' +
+              '<div class="settings-row-desc" id="visibleFacilitiesDesc">Showing all 10 facilities</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+        renderCeoRoleConfig();
+      } else {
+        // VP / Hospital Admin: read-only, just show what they see
+        var role = appState.roles[appState.activeRole];
+        var facCount = role ? (role.facilities === '__all__' ? Object.keys(DATA.facilities).length : (role.facilities || []).length) : 0;
+        var metCount = role ? (role.metrics || []).length : 0;
+        container.innerHTML = '<div class="settings-section">' +
+          '<h3><i data-lucide="eye"></i> Your View</h3>' +
+          '<div class="settings-row"><div>' +
+            '<div class="settings-row-label">Role</div>' +
+            '<div class="settings-row-desc">' + appState.activeRole + '</div>' +
+          '</div></div>' +
+          '<div class="settings-row"><div>' +
+            '<div class="settings-row-label">Facilities</div>' +
+            '<div class="settings-row-desc">' + facCount + ' facilities assigned by admin</div>' +
+          '</div></div>' +
+          '<div class="settings-row"><div>' +
+            '<div class="settings-row-label">Metrics</div>' +
+            '<div class="settings-row-desc">' + metCount + ' metrics assigned by admin</div>' +
+          '</div></div>' +
+        '</div>';
+      }
+      lucide.createIcons();
+    }
+
+    function renderCeoRoleConfig() {
+      var container = document.getElementById('ceoRoleConfig');
+      if (!container) return;
+      var roleName = AUTH_USER ? AUTH_USER.role : appState.activeRole;
+      var role = appState.roles[roleName];
+      if (!role) { container.innerHTML = '<p style="color:var(--color-text-muted);padding:var(--space-3);">No role configuration found.</p>'; return; }
+
+      var allIds = Object.keys(DATA.facilities);
+      var allMetrics = ['Total Census', 'ICU Occupancy', 'Admissions', 'Discharges', 'Births'];
+      var allKpis = [
+        { id: 'census', label: 'Total Census' },
+        { id: 'bedUtil', label: 'Bed Utilization' },
+        { id: 'icuUtil', label: 'ICU Utilization' },
+        { id: 'admissions', label: 'Admissions' },
+        { id: 'discharges', label: 'Discharges' }
+      ];
+      var facList = role.facilities === '__all__' ? allIds : (role.facilities || []);
+
+      var html = '<div style="border:1px solid var(--color-border);border-radius:var(--radius-lg);overflow:hidden;">';
+      html += '<div style="padding:var(--space-3) var(--space-4);background:var(--color-surface-offset);border-bottom:1px solid var(--color-border);">';
+      html += '<strong style="font-size:var(--text-sm);">Customize what you see on your dashboard</strong>';
+      html += '</div>';
+      html += '<div style="padding:var(--space-3) var(--space-4);">';
+
+      // Facilities
+      html += '<div class="role-field"><div class="role-field-label">Facilities</div><div class="role-check-grid">';
+      allIds.forEach(function (fid) {
+        var checked = facList.includes(fid) ? ' checked' : '';
+        html += '<label><input type="checkbox" data-group="ceo-fac" value="' + fid + '"' + checked + '> ' + DATA.facilities[fid].location + '</label>';
+      });
+      html += '</div></div>';
+
+      // Metrics
+      html += '<div class="role-field"><div class="role-field-label">Chart Metrics</div><div class="role-check-grid">';
+      allMetrics.forEach(function (m) {
+        var checked = (role.metrics || allMetrics).includes(m) ? ' checked' : '';
+        html += '<label><input type="checkbox" data-group="ceo-met" value="' + m + '"' + checked + '> ' + m + '</label>';
+      });
+      html += '</div></div>';
+
+      // KPIs
+      html += '<div class="role-field"><div class="role-field-label">Overview KPI Cards</div><div class="role-check-grid">';
+      allKpis.forEach(function (k) {
+        var checked = (role.kpis || allKpis.map(function (x) { return x.id; })).includes(k.id) ? ' checked' : '';
+        html += '<label><input type="checkbox" data-group="ceo-kpi" value="' + k.id + '"' + checked + '> ' + k.label + '</label>';
+      });
+      html += '</div></div>';
+
+      html += '<div class="role-actions"><button class="btn btn-primary btn-sm" onclick="saveCeoRoleConfig()">Save My View</button></div>';
+      html += '</div></div>';
+
+      container.innerHTML = html;
+    }
+
+    function saveCeoRoleConfig() {
+      var roleName = AUTH_USER ? AUTH_USER.role : appState.activeRole;
+      var role = appState.roles[roleName];
+      if (!role) return;
+      var allIds = Object.keys(DATA.facilities);
+
+      // Read facilities
+      var selFacs = [];
+      document.querySelectorAll('input[data-group="ceo-fac"]').forEach(function (cb) { if (cb.checked) selFacs.push(cb.value); });
+      role.facilities = selFacs.length === allIds.length ? '__all__' : selFacs;
+
+      // Read metrics
+      var selMets = [];
+      document.querySelectorAll('input[data-group="ceo-met"]').forEach(function (cb) { if (cb.checked) selMets.push(cb.value); });
+      role.metrics = selMets;
+
+      // Read KPIs
+      var selKpis = [];
+      document.querySelectorAll('input[data-group="ceo-kpi"]').forEach(function (cb) { if (cb.checked) selKpis.push(cb.value); });
+      role.kpis = selKpis;
+
+      showToast('Dashboard customization saved');
+
+      // Persist via CEO self-edit endpoint
+      if (AUTH_TOKEN && !IS_SHARE_VIEW) {
+        apiCall('PUT', '/api/roles/my-role', {
+          facilities: role.facilities,
+          metrics: role.metrics,
+          kpis: role.kpis
+        }).catch(e => console.warn('Failed to save CEO config:', e));
+      }
+
+      switchActiveRole(roleName);
     }
 
     function renderRoleConfig() {
@@ -4640,9 +4779,8 @@
       const startTab = appState.currentTab || appState.settings.defaultView || 'overview';
       switchTab(startTab);
 
-      // Populate role dropdown & render role config
-      populateRoleDropdown();
-      renderRoleConfig();
+      // Populate role section based on permissions
+      renderRoleSection();
 
       // Show app, hide loader
       document.getElementById('loadingScreen').style.display = 'none';
