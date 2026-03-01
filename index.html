@@ -908,6 +908,13 @@
       white-space: nowrap;
     }
 
+    .facility-id {
+      font-weight: 400;
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      margin-left: 4px;
+    }
+
     .facility-location {
       font-size: var(--text-xs);
       color: var(--color-text-muted);
@@ -3223,7 +3230,7 @@
       <div class="facility-card" onclick="navigateToFacility('${f.id}')">
         <div class="facility-card-header">
           <div>
-            <div class="facility-name">${f.id} - ${f.location}</div>
+            <div class="facility-name">${f.location} <span class="facility-id">${f.id}</span></div>
           </div>
           <div class="status-dot ${statusColor}"></div>
         </div>
