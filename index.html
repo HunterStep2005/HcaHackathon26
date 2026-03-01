@@ -2583,15 +2583,6 @@
                 <label>Facility</label>
                 <select id="alertFacility"></select>
               </div>
-              <div class="form-group">
-                <label>Time Range</label>
-                <select id="alertTimeRange">
-                  <option value="today">Today</option>
-                  <option value="24h">Last 24 Hours</option>
-                  <option value="3d">Last 3 Days</option>
-                  <option value="7d">Last 7 Days</option>
-                </select>
-              </div>
             </div>
             <div class="threshold-grid">
               <!-- Bed Occupancy -->
@@ -2650,7 +2641,7 @@
           <div class="section-header">
             <div>
               <div class="section-title">Active Alerts <span id="alertCount" style="font-size:var(--text-xs);font-weight:400;color:var(--color-text-muted);margin-left:var(--space-2);"></span></div>
-              <div class="section-subtitle">Historical incidents from census data — filtered by your threshold configuration above</div>
+              <div class="section-subtitle">Facilities currently exceeding your threshold configuration above</div>
             </div>
           </div>
           <div class="alerts-feed" id="alertsFeed"></div>
@@ -4134,10 +4125,7 @@
         sel._bound = true;
       }
       const timeSel = document.getElementById('alertTimeRange');
-      if (timeSel && !timeSel._bound) {
-        timeSel.addEventListener('change', () => { appState.alertPage = 1; renderAlerts(); });
-        timeSel._bound = true;
-      }
+      if (timeSel) timeSel.closest('.form-group')?.remove();
       // Sync threshold UI with state
       syncThresholdUI();
     }
@@ -4194,123 +4182,68 @@
     function generateAlerts() {
       const alerts = [];
       const facilitySel = document.getElementById('alertFacility') ? document.getElementById('alertFacility').value : 'all';
-      const timeSel = document.getElementById('alertTimeRange') ? document.getElementById('alertTimeRange').value : 'today';
       const th = appState.alertThresholds;
       const visibleIds = getVisibleFacilities();
-
       const idsToCheck = facilitySel === 'all' ? visibleIds : [facilitySel];
-
-      const now = new Date(DATA.lastUpdated);
-      let startTime = new Date(now);
-      if (timeSel === 'today') {
-        startTime.setHours(0, 0, 0, 0);
-      } else if (timeSel === '24h') {
-        startTime.setHours(startTime.getHours() - 24);
-      } else if (timeSel === '3d') {
-        startTime.setHours(startTime.getHours() - 72);
-      } else if (timeSel === '7d') {
-        startTime.setHours(startTime.getHours() - 168);
-      }
+      const seen = new Set();
 
       idsToCheck.forEach(id => {
         const f = DATA.facilities[id];
-        const capacityBed = f.beds;
-        const capacityICU = f.icuMax;
+        if (!f) return;
 
-        const cData = DATA.chartData[id];
-        if (!cData) return;
-
-        const checkSeries = (seriesName, capacity, metricName, warnThresh, critThresh) => {
-          if (!cData[seriesName]) return;
-
-          let currentIncident = null;
-
-          for (let pt of cData[seriesName]) {
-            const ptTime = new Date(pt.t);
-            if (ptTime < startTime || ptTime > now) continue;
-
-            const pct = capacity > 0 ? (pt.v / capacity) * 100 : 0;
-            let currentLevel = null;
-            if (pct >= critThresh) currentLevel = 'critical';
-            else if (pct >= warnThresh) currentLevel = 'warning';
-
-            if (currentLevel) {
-              if (!currentIncident || currentIncident.level !== currentLevel) {
-                if (currentIncident) {
-                  alerts.push(currentIncident);
-                }
-                currentIncident = {
-                  id: `hist_${metricName}_${id}_${pt.t}`,
-                  level: currentLevel,
-                  facility: f.location,
-                  metric: metricName,
-                  startTime: pt.t,
-                  endTime: pt.t,
-                  maxPct: pct,
-                  maxV: pt.v,
-                  capacity: capacity,
-                  tz: f.timezone,
-                  points: [{ t: pt.t, v: pt.v }]
-                };
-              } else {
-                currentIncident.endTime = pt.t;
-                currentIncident.points.push({ t: pt.t, v: pt.v });
-                if (pct > currentIncident.maxPct) {
-                  currentIncident.maxPct = pct;
-                  currentIncident.maxV = pt.v;
-                }
-              }
-            } else {
-              if (currentIncident) {
-                alerts.push(currentIncident);
-                currentIncident = null;
-              }
+        // Check Bed Occupancy (current value)
+        if (th.bed.enabled && f.beds > 0) {
+          const pct = (f.latestCensus / f.beds) * 100;
+          let level = null;
+          if (pct >= th.bed.critical) level = 'critical';
+          else if (pct >= th.bed.warning) level = 'warning';
+          if (level) {
+            const key = `bed_${id}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              alerts.push({
+                id: key,
+                level: level,
+                facility: f.location,
+                message: `Bed occupancy at ${pct.toFixed(1)}% (${f.latestCensus} / ${f.beds})`,
+                time: DATA.lastUpdated,
+                tz: f.timezone
+              });
             }
           }
-          if (currentIncident) {
-            alerts.push(currentIncident);
-          }
-        };
-
-        if (th.bed.enabled) {
-          checkSeries('Total Census', capacityBed, 'Bed', th.bed.warning, th.bed.critical);
         }
-        if (th.icu.enabled) {
-          checkSeries('ICU Occupancy', capacityICU, 'ICU', th.icu.warning, th.icu.critical);
+
+        // Check ICU Occupancy (current value)
+        if (th.icu.enabled && f.icuMax > 0) {
+          const pct = (f.latestICU / f.icuMax) * 100;
+          let level = null;
+          if (pct >= th.icu.critical) level = 'critical';
+          else if (pct >= th.icu.warning) level = 'warning';
+          if (level) {
+            const key = `icu_${id}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              alerts.push({
+                id: key,
+                level: level,
+                facility: f.location,
+                message: `ICU occupancy at ${pct.toFixed(1)}% (${f.latestICU} / ${f.icuMax})`,
+                time: DATA.lastUpdated,
+                tz: f.timezone
+              });
+            }
+          }
         }
       });
 
-      const formattedAlerts = alerts.map(a => {
-        let durationStr = "";
-        const sTime = new Date(a.startTime);
-        const eTime = new Date(a.endTime);
-        const diffMins = Math.round((eTime - sTime) / 60000);
-        if (diffMins > 0) {
-          if (diffMins >= 60) {
-            durationStr = ` for ${Math.floor(diffMins / 60)}h ${diffMins % 60}m`;
-          } else {
-            durationStr = ` for ${diffMins}m`;
-          }
-        }
-        return {
-          id: a.id,
-          level: a.level,
-          facility: a.facility,
-          message: `${a.metric} occupancy hit ${a.maxPct.toFixed(1)}% (${a.maxV}/${a.capacity})${durationStr}.`,
-          time: a.endTime,
-          tz: a.tz,
-          capacity: a.capacity,
-          points: a.points
-        }
-      });
-
-      formattedAlerts.sort((a, b) => {
+      // Sort: critical first, then by facility name
+      alerts.sort((a, b) => {
         if (a.level === 'critical' && b.level !== 'critical') return -1;
         if (a.level !== 'critical' && b.level === 'critical') return 1;
-        return new Date(b.time) - new Date(a.time);
+        return a.facility.localeCompare(b.facility);
       });
 
-      return formattedAlerts;
+      return alerts;
     }
 
     function renderAlerts() {
@@ -4319,7 +4252,7 @@
       appState.currentAlerts = alerts;
       // Update count badge
       const countEl = document.getElementById('alertCount');
-      if (countEl) countEl.textContent = alerts.length > 0 ? `(${alerts.length} incident${alerts.length !== 1 ? 's' : ''})` : '';
+      if (countEl) countEl.textContent = alerts.length > 0 ? `(${alerts.length} alert${alerts.length !== 1 ? 's' : ''})` : '';
       renderAlertsList();
     }
 
@@ -4332,18 +4265,14 @@
       <div style="text-align:center;padding:var(--space-8);color:var(--color-text-muted);">
         <i data-lucide="check-circle" style="width:40px;height:40px;margin:0 auto var(--space-3);display:block;color:var(--green);"></i>
         <p style="font-size:var(--text-sm);font-weight:500;">All clear</p>
-        <p style="font-size:var(--text-xs);">No active alerts at this time.</p>
+        <p style="font-size:var(--text-xs);">No facilities currently exceed your alert thresholds.</p>
       </div>`;
         lucide.createIcons();
         document.getElementById('loadMoreAlertsBtn')?.remove();
         return;
       }
 
-      const pageLimit = 10;
-      const currentPage = appState.alertPage || 1;
-      const visibleAlerts = alerts.slice(0, currentPage * pageLimit);
-
-      container.innerHTML = visibleAlerts.map((a, i) => {
+      container.innerHTML = alerts.map((a, i) => {
         const snoozed = appState.snoozedAlerts.has(a.id);
         const acked = appState.acknowledgedAlerts ? appState.acknowledgedAlerts.has(a.id) : false;
 
@@ -4357,7 +4286,7 @@
             <div style="min-width:0;">
               <div class="alert-title ${a.level}" style="margin-bottom:2px;">${a.level === 'critical' ? 'CRITICAL' : 'WARNING'}: ${a.facility}</div>
               <div class="alert-message" style="margin-bottom:2px;">${a.message}</div>
-              <div class="alert-time">${facilityDateTime(a.time, a.tz)}</div>
+              <div class="alert-time">As of ${facilityDateTime(a.time, a.tz)}</div>
             </div>
             <div style="display:flex;gap:var(--space-2);align-items:center;flex-shrink:0;">
               <button class="btn btn-sm ${acked ? 'btn-secondary' : 'btn-primary'}" onclick="ackAlert('${a.id}')" title="${acked ? 'Undo acknowledge' : 'Acknowledge'}" style="padding:4px 10px;font-size:11px;">
@@ -4377,25 +4306,8 @@
 
       lucide.createIcons();
 
-      // Add Load More button if needed
-      let loadMoreBtn = document.getElementById('loadMoreAlertsBtn');
-      if (alerts.length > visibleAlerts.length) {
-        if (!loadMoreBtn) {
-          loadMoreBtn = document.createElement('button');
-          loadMoreBtn.id = 'loadMoreAlertsBtn';
-          loadMoreBtn.className = 'btn btn-secondary';
-          loadMoreBtn.style.margin = 'var(--space-4) auto';
-          loadMoreBtn.style.display = 'block';
-          loadMoreBtn.textContent = 'Load More Alerts';
-          loadMoreBtn.onclick = () => {
-            appState.alertPage = (appState.alertPage || 1) + 1;
-            renderAlertsList();
-          };
-          container.parentNode.insertBefore(loadMoreBtn, container.nextSibling);
-        }
-      } else if (loadMoreBtn) {
-        loadMoreBtn.remove();
-      }
+      // Remove load more button if it exists (not needed for current-value alerts)
+      document.getElementById('loadMoreAlertsBtn')?.remove();
     }
 
     function ackAlert(id) {
@@ -4888,6 +4800,35 @@
     // Push alerts into notification center when they fire
     let lastAlertIds = new Set();
     function syncAlertsToNotifications(alerts) {
+      const currentIds = new Set(alerts.map(a => a.id));
+
+      // Remove notifications whose alerts are no longer active
+      // (slider moved or alert type toggled off)
+      if (lastAlertIds.size > 0) {
+        const removedIds = [...lastAlertIds].filter(id => !currentIds.has(id));
+        if (removedIds.length > 0) {
+          // Build a set of facility names from removed alerts for matching
+          const removedFacilities = new Set();
+          removedIds.forEach(aid => {
+            const parts = aid.split('_');
+            const facId = parts.slice(1).join('_');
+            const f = DATA.facilities[facId];
+            if (f) removedFacilities.add(f.location);
+          });
+          notifHistory = notifHistory.filter(n => {
+            // Remove if notification title matches a removed facility alert
+            if (n.title && removedFacilities.size > 0) {
+              for (const fac of removedFacilities) {
+                if (n.title.includes(fac)) return false;
+              }
+            }
+            return true;
+          });
+          renderNotifCenter();
+        }
+      }
+
+      // Add notifications for new alerts that weren't in the last set
       alerts.forEach(a => {
         if (!lastAlertIds.has(a.id)) {
           pushNotification(
@@ -4898,7 +4839,8 @@
           );
         }
       });
-      lastAlertIds = new Set(alerts.map(a => a.id));
+
+      lastAlertIds = currentIds;
     }
 
     // ── Enhanced Share Link ──────────────────────────────────
